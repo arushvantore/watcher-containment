@@ -1,0 +1,33 @@
+# requirements.txt — the exact Python packages this project needs.
+# A "pinned" version (package==X.Y.Z) means: always install THIS version,
+# so the project runs the same on your laptop and anyone else's.
+#
+# To install later (after approval):  venv/bin/pip install -r requirements.txt
+
+# FastAPI: the web framework. It receives HTTP requests (like POST /agents)
+# and routes them to our Python functions. It also validates JSON input
+# using Pydantic models automatically.
+fastapi==0.143.3
+
+# Uvicorn: the actual web server process. FastAPI is the "brain" that
+# handles requests; uvicorn is the "mouth and ears" that talks HTTP.
+# We will run it bound to 127.0.0.1 so only THIS computer can connect.
+uvicorn==0.54.0
+
+# Pydantic: data validation library. We define "shapes" for every input
+# (e.g. an agent name must be a string under 100 characters) and Pydantic
+# rejects anything that doesn't fit. FastAPI uses it under the hood.
+pydantic==2.14.1
+
+# python-dotenv: reads the .env file so secrets and settings live OUTSIDE
+# the code. We never commit .env — only .env.example (fake placeholders).
+python-dotenv==1.2.4
+
+# pytest: the test runner. We run "pytest" in a terminal and it executes
+# every test function we've written and reports pass/fail.
+pytest==9.1.1
+
+# httpx: modern HTTP client. FastAPI's built-in test tool (TestClient)
+# needs it to make fake requests to our app during tests — no real server
+# or network involved.
+httpx==0.28.1

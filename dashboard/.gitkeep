@@ -1,0 +1,2 @@
+# dashboard/ — the web UI (plain HTML + JavaScript, served by FastAPI).
+# index.html arrives in a later step.

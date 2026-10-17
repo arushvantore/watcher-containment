@@ -1,0 +1,2 @@
+# db/ holds the SQLite database file.
+# The actual .sqlite file is created at runtime and is gitignored.

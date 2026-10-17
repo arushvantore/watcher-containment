@@ -1,0 +1,26 @@
+# .gitignore — files/folders Git should NEVER track or commit.
+# This is a security file: it keeps secrets and bulky junk out of history.
+
+# Secrets: real environment variables (never commit these)
+.env
+
+# The SQLite database files (data, not code)
+db/*.sqlite
+db/*.sqlite3
+*.sqlite
+*.sqlite3
+
+# Python virtual environment (recreatable via requirements.txt)
+venv/
+.venv/
+
+# Python bytecode cache (auto-generated)
+__pycache__/
+*.pyc
+*.pyo
+
+# Test runner cache
+.pytest_cache/
+
+# macOS junk
+.DS_Store

@@ -1,0 +1,1153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WATCHER — containment</title>
+<style>
+  :root {
+    --bg: #03060a;
+    --ink: #e8f3ff;
+    --muted: #7e8fa5;
+    --green: #5cff9d;
+    --blue: #4f8bff;
+    --amber: #ffb547;
+    --red: #ff3b4e;
+    --grey: #5b6a7a;
+    --line: rgba(160, 200, 255, .12);
+  }
+  * { box-sizing: border-box; }
+  html, body { min-height: 100%; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 14px; line-height: 1.6; overflow-x: hidden;
+  }
+  body::before {
+    content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 6;
+    background: repeating-linear-gradient(to bottom, rgba(92,255,157,.03) 0 1px, transparent 1px 3px);
+  }
+  :focus-visible { outline: 1px solid var(--green); outline-offset: 3px; }
+  button, input, textarea { font: inherit; color: inherit; }
+  button { background: none; border: 0; cursor: pointer; }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+  header {
+    display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;
+    padding: 14px 26px; border-bottom: 1px solid var(--line);
+  }
+  header h1 { margin: 0; font-size: 14px; font-weight: 500; letter-spacing: .14em; }
+  .status { font-size: 12px; color: var(--muted); }
+  .status b { color: var(--green); font-weight: 500; }
+  .status b.bad { color: var(--red); }
+  .head-right { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+  .key { display: flex; gap: 16px; font-size: 12px; color: var(--muted); }
+  .key i { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 7px; vertical-align: middle; }
+  .console-btn { padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line); font-size: 12px; color: var(--muted); }
+  .console-btn:hover { border-color: var(--blue); color: var(--ink); }
+  .console-btn.danger { border-color: rgba(255,59,78,.5); color: var(--red); }
+  .console-btn.danger:hover { background: rgba(255,59,78,.08); }
+
+  .crumbs { padding: 12px 26px 0; color: var(--muted); font-size: 12px; min-height: 32px; }
+  .crumbs button { color: var(--green); }
+  .crumbs button:hover { text-decoration: underline; }
+  .view { display: none; padding: 8px 26px 56px; animation: in .3s ease-out; }
+  .view.active { display: block; }
+  @keyframes in { from { opacity: 0; } to { opacity: 1; } }
+
+  /* ---------- containment globe ---------- */
+  .stage { position: relative; height: min(72vh, 700px); min-height: 480px; max-width: 1100px; margin: 0 auto; }
+  .stage::before, .stage::after {
+    content: ""; position: absolute; width: 26px; height: 26px; border-color: var(--green);
+    border-style: solid; border-width: 0; pointer-events: none; opacity: .7;
+  }
+  .stage::before { top: 0; left: 0; border-top-width: 1px; border-left-width: 1px; }
+  .stage::after { bottom: 0; right: 0; border-bottom-width: 1px; border-right-width: 1px; }
+  #sphere { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: grab; touch-action: none; }
+  #sphere.grabbing { cursor: grabbing; }
+  .readout { position: absolute; top: 18px; font-size: 12px; color: var(--muted); line-height: 1.9; pointer-events: none; }
+  .readout.left { left: 18px; }
+  .readout.right { right: 18px; text-align: right; }
+  .readout b { color: var(--ink); font-weight: 500; }
+  .readout .bar { display: inline-block; width: 80px; height: 2px; background: var(--line); vertical-align: middle; margin-left: 8px; }
+  .readout .bar span { display: block; height: 100%; background: var(--green); }
+  .hint { position: absolute; left: 0; right: 0; bottom: 14px; margin: 0; text-align: center; color: var(--muted); font-size: 12px; pointer-events: none; }
+  .map-empty {
+    position: absolute; inset: 0; display: grid; place-items: center; text-align: center;
+    color: var(--muted); font-size: 13px; pointer-events: none; padding: 0 20px;
+  }
+
+  /* ---------- register ---------- */
+  .register { max-width: 1100px; margin: 18px auto 0; }
+  .register .panel { padding: 16px; }
+  .register .row { display: flex; gap: 10px; flex-wrap: wrap; }
+  .register input {
+    flex: 1; min-width: 170px; padding: 9px 12px; background: var(--bg);
+    border: 1px solid var(--line); border-radius: 10px; color: var(--ink); font: inherit; font-size: 13px;
+  }
+  .register button.go {
+    padding: 9px 18px; border-radius: 999px; background: #fff; color: #05080c;
+    font-size: 13px; font-weight: 500;
+  }
+  .register button.go:hover { background: var(--green); }
+  .hint-line { margin-top: 8px; font-size: 11px; color: var(--muted); }
+  .toast-r { margin-top: 8px; font-size: 12px; min-height: 18px; }
+  .toast-r.g { color: var(--green); } .toast-r.r { color: var(--red); }
+
+  /* ---------- shared card style ---------- */
+  .cards { display: flex; flex-wrap: wrap; gap: 30px; justify-content: center; padding: 34px 0 0; }
+  .card {
+    position: relative; width: 290px; padding: 22px 22px 20px; border-radius: 20px; text-align: left; color: var(--ink);
+    background: linear-gradient(180deg, #0b1118 0%, #06090e 100%);
+    border: 1px solid var(--line);
+    box-shadow: 0 24px 44px -24px rgba(0,0,0,.95);
+    transition: transform .3s ease, border-color .3s ease;
+  }
+  .card:hover { border-color: rgba(92,255,157,.35); }
+  .card.featured { border-color: rgba(92,255,157,.55); box-shadow: 0 0 0 1px rgba(92,255,157,.15), 0 0 26px -10px rgba(92,255,157,.35), 0 24px 44px -24px rgba(0,0,0,.95); }
+  .card.quarantined { border-color: rgba(255,59,78,.4); }
+  .card.quarantined.featured { border-color: rgba(255,59,78,.6); box-shadow: 0 0 0 1px rgba(255,59,78,.18), 0 0 26px -10px rgba(255,59,78,.4), 0 24px 44px -24px rgba(0,0,0,.95); }
+  .card.standby { border-color: rgba(79,139,255,.35); }
+  .card.standby.featured { border-color: rgba(79,139,255,.55); box-shadow: 0 0 0 1px rgba(79,139,255,.15), 0 0 26px -10px rgba(79,139,255,.35), 0 24px 44px -24px rgba(0,0,0,.95); }
+  .card-top { display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: var(--muted); letter-spacing: .06em; }
+  .tag { padding: 3px 10px; border-radius: 999px; border: 1px solid var(--line); font-size: 11px; color: var(--muted); }
+  .tag.active { color: var(--green); border-color: rgba(92,255,157,.5); }
+  .tag.quarantined { color: var(--red); border-color: rgba(255,59,78,.55); }
+  .tag.standby { color: #9fc3ff; border-color: rgba(79,139,255,.5); }
+  .card-art { display: grid; place-items: center; height: 150px; margin: 6px 0 2px; }
+  .card-art canvas { width: 150px; height: 150px; display: block; }
+  .card h3 { margin: 4px 0 2px; font-size: 21px; font-weight: 500; color: #fff; }
+  .role { margin: 0 0 14px; font-size: 12px; color: var(--muted); }
+  .big { font-size: 40px; font-weight: 300; color: #fff; letter-spacing: -.02em; line-height: 1.1; }
+  .big small { font-size: 13px; color: var(--muted); margin-left: 8px; letter-spacing: 0; }
+  ul.items { list-style: none; padding: 0; margin: 14px 0 16px; font-size: 12px; }
+  ul.items li { padding: 7px 0; border-top: 1px solid var(--line); display: flex; gap: 10px; color: var(--ink); }
+  ul.items li::before { content: "\2713"; color: var(--green); }
+  ul.items li.none { color: var(--muted); }
+  ul.items li.none::before { content: ""; }
+  .cta { width: 100%; padding: 12px; border-radius: 999px; background: #fff; color: #05080c; font-size: 13px; font-weight: 500; transition: background .2s ease; }
+  .cta:hover { background: var(--green); }
+  .card.minimal .role, .card.minimal .big, .card.minimal ul.items { display: none; }
+  .card.minimal { padding-bottom: 22px; }
+  .card-art canvas.tappable { cursor: pointer; }
+  .card-art canvas.tappable:hover { filter: drop-shadow(0 0 10px rgba(79,139,255,.7)); }
+
+  .unit-head { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin: 8px 0 0; }
+  .unit-head h2 { margin: 0; font-size: 22px; font-weight: 500; color: #fff; }
+  .unit-head p { margin: 0; color: var(--muted); font-size: 12px; }
+  .unit-actions { display: flex; gap: 10px; margin-left: auto; flex-wrap: wrap; }
+  .unit-actions button {
+    padding: 7px 14px; border-radius: 999px; font-size: 12px; border: 1px solid var(--line); color: var(--muted);
+  }
+  .unit-actions button.a-green { border-color: rgba(92,255,157,.5); color: var(--green); }
+  .unit-actions button.a-blue { border-color: rgba(79,139,255,.5); color: #9fc3ff; }
+  .unit-actions button.a-red { border-color: rgba(255,59,78,.55); color: var(--red); }
+  .unit-actions button:hover { background: rgba(255,255,255,.05); }
+
+  .composer { display: none; margin: 26px auto 0; max-width: 480px; }
+  .composer.open { display: block; }
+  .composer input { width: 100%; padding: 11px 14px; background: #03060a; border: 1px solid rgba(92,255,157,.45); border-radius: 999px; color: var(--ink); }
+  .toast { margin-top: 10px; font-size: 12px; color: var(--green); min-height: 18px; text-align: left; }
+  .toast.b { color: var(--blue); }
+  .toast.r { color: var(--red); }
+  .note { margin-top: 20px; font-size: 12px; color: var(--muted); text-align: center; }
+
+  /* ---------- audit log ---------- */
+  .audit { max-width: 900px; margin: 34px auto 0; border-top: 1px solid var(--line); padding-top: 16px; }
+  .audit h3 { margin: 0 0 10px; font-size: 12px; letter-spacing: .1em; color: var(--muted); font-weight: 500; }
+  .log-line {
+    display: grid; grid-template-columns: 74px 170px 84px 1fr; gap: 10px;
+    padding: 4px 0; border-bottom: 1px dashed rgba(160,200,255,.08); font-size: 12.5px;
+  }
+  .log-line .t { color: var(--muted); }
+  .log-line .s { text-align: right; }
+  .ok { color: var(--green); } .rej { color: var(--red); } .neutral { color: var(--muted); }
+
+  /* ---------- maker console (owner only) ---------- */
+  .console-grid { display: grid; grid-template-columns: 330px 1fr; gap: 22px; align-items: start; }
+  .panel {
+    border: 1px solid var(--line); border-radius: 18px; padding: 18px;
+    background: linear-gradient(180deg, #0b1118 0%, #06090e 100%);
+    margin-bottom: 22px;
+  }
+  .panel h3 { margin: 0 0 12px; font-size: 13px; font-weight: 500; color: #fff; letter-spacing: .04em; }
+  .verdict { font-size: 18px; margin: 4px 0 14px; }
+  .verdict.ok { color: var(--green); }
+  .verdict.near { color: var(--amber); }
+  .verdict.over { color: var(--red); }
+  .verdict-note { font-size: 12px; color: var(--muted); margin: 0 0 14px; }
+  .gauge { margin: 12px 0; }
+  .gauge .row { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); }
+  .gauge .row b { color: var(--ink); font-weight: 500; }
+  .gauge .track { height: 4px; background: rgba(255,255,255,.1); border-radius: 2px; margin-top: 6px; overflow: hidden; }
+  .gauge .track span { display: block; height: 100%; background: var(--green); transition: width .6s ease; }
+  .gauge .track span.warn { background: var(--amber); }
+  .gauge .track span.hot { background: var(--red); }
+  .small { font-size: 12px; color: var(--muted); }
+  .detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin: 10px 0 14px; }
+  .detail-grid div { font-size: 12px; color: var(--muted); }
+  .detail-grid b { display: block; font-size: 18px; color: #fff; font-weight: 400; }
+  .draft {
+    width: 100%; min-height: 90px; background: #03060a; border: 1px solid var(--line); border-radius: 12px;
+    color: var(--ink); padding: 10px; font-size: 12px; resize: vertical;
+  }
+  .btn {
+    margin-top: 10px; padding: 9px 14px; border-radius: 999px; font-size: 12px;
+    border: 1px solid var(--line); color: var(--muted); cursor: not-allowed;
+  }
+  .btn.real { cursor: pointer; border-color: rgba(255,59,78,.5); color: var(--red); }
+  .btn.real:hover { background: rgba(255,59,78,.08); }
+  .rule-list { list-style: none; padding: 0; margin: 0; font-size: 12px; }
+  .rule-list li { padding: 7px 0; border-top: 1px solid var(--line); display: flex; justify-content: space-between; gap: 10px; }
+  .rule-list li span:last-child { color: var(--muted); text-align: right; }
+  .units-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px; }
+  .unit-tile {
+    border-radius: 18px; padding: 14px 12px; text-align: center; color: var(--ink);
+    background: linear-gradient(180deg, #0b1118 0%, #06090e 100%); border: 1px solid var(--line);
+  }
+  .unit-tile.selected { border-color: rgba(92,255,157,.55); }
+  .unit-tile canvas { width: 100px; height: 100px; display: block; margin: 4px auto 8px; cursor: pointer; }
+  .unit-tile .uname { font-size: 12px; word-break: break-all; }
+  .unit-tile .umeta { font-size: 11px; color: var(--muted); margin-top: 4px; }
+  .unit-tile .utier { font-size: 11px; margin-top: 6px; }
+  .glow-light canvas { filter: drop-shadow(0 0 8px rgba(79,139,255,.7)); }
+  .glow-normal canvas { filter: drop-shadow(0 0 8px rgba(92,255,157,.7)); }
+  .glow-heavy canvas { filter: drop-shadow(0 0 12px rgba(255,181,71,.8)); }
+  .glow-over canvas { filter: drop-shadow(0 0 14px rgba(255,59,78,.9)); }
+  .flag { border-top: 1px solid var(--line); padding: 10px 0; }
+  .flag-top { display: flex; justify-content: space-between; gap: 10px; font-size: 12px; }
+  .flag-rule { color: var(--red); }
+  .flag-unit { color: var(--ink); text-align: right; }
+  .flag-detail { margin-top: 4px; }
+  .flag-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+  .flag-actions .btn { margin-top: 6px; }
+
+  footer { text-align:center; color:#3f4d54; font-size: 11px; padding: 14px; letter-spacing:.06em; }
+
+  @media (max-width: 860px) {
+    .console-grid { grid-template-columns: 1fr; }
+    .readout { font-size: 11px; }
+    .readout .bar { width: 50px; }
+    .stage { min-height: 440px; }
+    .unit-actions { margin-left: 0; }
+    .log-line { grid-template-columns: 62px 1fr; }
+    .log-line .s, .log-line .d { grid-column: 2; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>CONTAINMENT</h1>
+  <div class="status" id="status">server <b>127.0.0.1:8000</b>, checking…</div>
+  <div class="head-right">
+    <div class="key">
+      <span><i style="background:var(--green)"></i>active</span>
+      <span><i style="background:var(--red)"></i>quarantined</span>
+      <span><i style="background:var(--blue)"></i>standby</span>
+    </div>
+    <button class="console-btn" id="open-console" title="owner only — this server is loopback-only">maker console</button>
+    <button class="console-btn danger" id="stop-all" title="turn every active unit off in one call">stop all</button>
+  </div>
+</header>
+
+<div class="crumbs" id="crumbs"></div>
+
+<main>
+  <!-- LEVEL 1: the draggable globe -->
+  <section class="view active" id="view-map" aria-label="Sectors">
+    <div class="stage">
+      <canvas id="sphere" aria-label="Containment globe. Drag to turn it. Tap a sector point to open it."></canvas>
+      <div class="readout left" id="ro-left"></div>
+      <div class="readout right" id="ro-right"></div>
+      <p class="hint">drag to turn. tap a point to open a sector.</p>
+      <div class="map-empty" id="map-empty"></div>
+      <nav class="sr-only" id="sr-nav" aria-label="Sectors"></nav>
+    </div>
+
+    <div class="register">
+      <div class="panel">
+        <div class="row">
+          <input id="r-name" maxlength="100" placeholder="register: name" aria-label="Agent name">
+          <input id="r-purpose" maxlength="2000" placeholder="purpose (becomes a sector on the globe)" aria-label="Purpose">
+          <input id="r-tools" maxlength="500" placeholder="tools, comma separated (empty = none)" aria-label="Allowed tools">
+          <button class="go" id="r-submit">REGISTER</button>
+        </div>
+        <div class="hint-line">starts on standby — open its unit and activate it. empty tools = no tools, by design.</div>
+        <div class="toast-r" id="r-toast"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- LEVEL 2: unit cards in a sector -->
+  <section class="view" id="view-cards" aria-label="Units in this sector">
+    <div class="cards" id="cards"></div>
+  </section>
+
+  <!-- LEVEL 3: one unit, three state cards -->
+  <section class="view" id="view-unit" aria-label="Unit">
+    <div class="unit-head">
+      <h2 id="unit-name"></h2>
+      <p id="unit-role"></p>
+      <div class="unit-actions">
+        <button id="act-toggle">DEACTIVATE</button>
+        <button id="act-quar">QUARANTINE</button>
+      </div>
+    </div>
+    <div class="cards" id="unit-cards"></div>
+    <div class="composer" id="composer">
+      <input id="order-input" maxlength="4000" placeholder="describe the order" aria-label="Order description">
+      <div class="toast" id="toast"></div>
+    </div>
+    <p class="note" id="unit-note">live: orders are sent to 127.0.0.1:8000 and the server enforces every gate itself.</p>
+
+    <div class="audit">
+      <h3>AUDIT LOG — every step, every refusal, newest first</h3>
+      <div id="logs"><span class="neutral">no events yet</span></div>
+    </div>
+  </section>
+  <!-- OWNER ONLY: maker console -->
+  <section class="view" id="view-console" aria-label="Maker console">
+    <p class="small" style="max-width:900px;margin:6px auto 16px;text-align:center">
+      owner view — reachable only from this computer (server binds 127.0.0.1, never the network).
+      every number below is computed from /agents and /logs. nothing is sampled, nothing is sent.
+    </p>
+    <div class="console-grid">
+      <div>
+        <div class="panel">
+          <h3>server facts</h3>
+          <div class="detail-grid" id="cf-facts"></div>
+          <p class="small" id="cf-health"></p>
+        </div>
+
+        <div class="panel">
+          <h3>can it handle the load?</h3>
+          <div class="verdict" id="verdict"></div>
+          <p class="verdict-note" id="verdict-note"></p>
+          <div class="gauge"><div class="row">orders/min, all units <b id="g-tpm"></b></div><div class="track"><span id="t-tpm"></span></div></div>
+          <div class="gauge"><div class="row">refusals logged <b id="g-ref"></b></div><div class="track"><span id="t-ref"></span></div></div>
+          <div class="gauge"><div class="row">units active <b id="g-act"></b></div><div class="track"><span id="t-act"></span></div></div>
+          <p class="small">thresholds: over 90 orders/min or over 90% capacity = over. these are starting guesses until a week of real usage measures them.</p>
+        </div>
+
+        <div class="panel">
+          <h3>alert rules</h3>
+          <ul class="rule-list">
+            <li><span>light</span><span>under 5 orders/min</span></li>
+            <li><span>normal</span><span>5 to 19 orders/min</span></li>
+            <li><span>heavy</span><span>20 to 49 orders/min, draft alert</span></li>
+            <li><span>over</span><span>50+ orders/min, draft alert</span></li>
+            <li><span>flag</span><span>3+ refusals in one unit</span></li>
+          </ul>
+        </div>
+      </div>
+
+      <div>
+        <div class="panel">
+          <h3>units by load — tap a globe for detail</h3>
+          <div class="units-grid" id="cf-units"></div>
+        </div>
+
+        <div class="panel" id="detail-panel">
+          <h3 id="cf-detail-title">select a unit</h3>
+          <div class="detail-grid" id="cf-detail"></div>
+          <p class="small" id="cf-detail-note"></p>
+        </div>
+
+        <div class="panel">
+          <h3>security flags (from real logs)</h3>
+          <div id="cf-flags"></div>
+          <p class="small">flags are derived only from this server's own audit trail: refusals and quarantines. task text is never read by rules. a flag never blocks anything by itself — you approve every action.</p>
+        </div>
+
+        <div class="panel">
+          <h3>alert drafts (not sent)</h3>
+          <div id="cf-drafts"></div>
+          <button class="btn" type="button" disabled>send alerts — needs an alert channel and your approval</button>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>ALL VALUES LIVE FROM /agents · /health · /logs — NO MOCK DATA</footer>
+
+<script>
+(() => {
+  const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const $ = id => document.getElementById(id);
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+
+  const esc = s => String(s).replace(/[&<>"']/g,
+    c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+  /* ---- API helper: same-origin relative paths ONLY ---- */
+  async function api(path, opts = {}) {
+    const res = await fetch(path, { headers: { "Content-Type": "application/json" }, ...opts });
+    let body = null;
+    try { body = await res.json(); } catch (e) { /* empty */ }
+    if (!res.ok) {
+      const d = body && body.detail;
+      const msg = typeof d === "string" ? d : (d && (d.message || d.task_id)) || res.statusText || "request failed";
+      const err = new Error(msg);
+      err.status = res.status; err.detail = d;
+      throw err;
+    }
+    return body;
+  }
+
+  /* ---- real state from real fields ---- */
+  const stateOf = a => a.quarantined ? "quarantined" : a.is_active ? "active" : "standby";
+  const stateColor = s => s === "active" ? "#5cff9d" : s === "quarantined" ? "#ff3b4e" : "#4f8bff";
+
+  let agents = [];            // live /agents
+  let statsCache = new Map(); // agent id -> {tasks, rate, refusals, last}
+
+  async function statsFor(id) {
+    if (statsCache.has(id)) return statsCache.get(id);
+    const rows = await api(`/agents/${id}/logs`).catch(() => []);
+    const tasks = new Map(); // task_id -> {at, bad}
+    rows.forEach(r => {
+      if (!tasks.has(r.task_id)) tasks.set(r.task_id, { at: r.created_at, bad: false });
+      if (r.status === "rejected") tasks.get(r.task_id).bad = true;
+    });
+    let refused = 0, recent = 0;
+    const cutoff = Date.now() - 5 * 60 * 1000;
+    tasks.forEach(v => {
+      if (v.bad) refused++;
+      if (Date.parse(v.at) >= cutoff) recent++;
+    });
+    const total = tasks.size;
+    const s = {
+      tasks: total,
+      rate: total ? Math.round(((total - refused) / total) * 100) : 0,
+      refusals: refused,
+      tpm: Math.round(recent / 5),   // real orders per minute, last 5 min window
+      last: rows.length ? rows[rows.length - 1] : null
+    };
+    statsCache.set(id, s);
+    return s;
+  }
+  const bustStats = id => statsCache.delete(id);
+
+  /* ---- sectors: purposes from real agents, stable positions ---- */
+  function latlon(name) {
+    let h = 2166136261;
+    for (let i = 0; i < name.length; i++) { h ^= name.charCodeAt(i); h = Math.imul(h, 16777619); }
+    h = h >>> 0;
+    const lat = (h % 120) - 60;
+    const lon = ((h >>> 9) % 340) - 170;
+    return { lat, lon };
+  }
+
+  const deg = d => d * Math.PI / 180;
+
+  function buildSectors() {
+    const groups = new Map();
+    agents.forEach(a => {
+      const key = a.purpose.trim() || "unassigned";
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(a);
+    });
+    const secs = [];
+    for (const [name, list] of groups) {
+      const { lat, lon } = latlon(name);
+      const la = deg(lat), lo = deg(lon);
+      secs.push({
+        name, units: list,
+        v: [Math.cos(la) * Math.cos(lo), Math.sin(la), Math.cos(la) * Math.sin(lo)],
+        live: list.some(a => a.is_active && !a.quarantined),
+        red: list.some(a => a.quarantined)
+      });
+    }
+    return secs;
+  }
+  let sectors = [];
+
+  /* ---- navigation ---- */
+  let current = { view: "map", sector: null, unit: null };
+  let stopGlobes = [];
+  const clearGlobes = () => { stopGlobes.forEach(f => f()); stopGlobes = []; };
+
+  function show(view) {
+    document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
+    $("view-" + view).classList.add("active");
+    current.view = view;
+    renderCrumbs();
+    window.scrollTo(0, 0);
+  }
+
+  function renderCrumbs() {
+    const c = $("crumbs");
+    c.innerHTML = "";
+    const link = (label, fn) => {
+      const b = document.createElement("button");
+      b.textContent = label;
+      b.addEventListener("click", fn);
+      c.append(b);
+    };
+    link("containment", showMap);
+    if (current.view === "console") {
+      c.append(" / ");
+      const s = document.createElement("span");
+      s.textContent = "maker console";
+      c.append(s);
+      return;
+    }
+    if (current.sector) { c.append(" / "); link(current.sector.name, () => showCards(current.sector)); }
+    if (current.unit) {
+      c.append(" / ");
+      const s = document.createElement("span");
+      s.textContent = current.unit.name;
+      c.append(s);
+    }
+  }
+
+  function showMap() { clearGlobes(); current = { view: "map", sector: null, unit: null }; show("map"); }
+
+  /* ---- header health + stop all ---- */
+  async function loadHealth() {
+    const el = $("status");
+    try {
+      const h = await api("/health");
+      el.innerHTML = `server <b class="${h.status === "ok" ? "" : "bad"}">127.0.0.1:8000</b>, ${h.status === "ok" ? "online" : h.status}, db ${h.db}`;
+    } catch (e) {
+      el.innerHTML = `server <b class="bad">127.0.0.1:8000</b>, unreachable`;
+    }
+  }
+
+  $("stop-all").addEventListener("click", async () => {
+    if (!confirm("STOP ALL?\n\nEvery active unit is deactivated in one call.")) return;
+    try {
+      const r = await api("/agents/deactivate-all", { method: "POST" });
+      await reload();
+      if (current.view === "unit" && current.unit) showUnit(current.unit.id);
+      alert(`deactivated ${r.deactivated} unit${r.deactivated === 1 ? "" : "s"}`);
+    } catch (e) { alert(`stop all failed: ${e.message}`); }
+  });
+
+  /* ---- maker console (owner only, all real) ---- */
+  let cfSelected = null;
+
+  function tier(tpm) {
+    if (tpm < 5)  return { key: "light",  label: "light",  color: "#4f8bff" };
+    if (tpm < 20) return { key: "normal", label: "normal", color: "#5cff9d" };
+    if (tpm < 50) return { key: "heavy",  label: "heavy",  color: "#ffb547" };
+    return          { key: "over",   label: "over",   color: "#ff3b4e" };
+  }
+
+  function showConsole() {
+    clearGlobes();
+    current = { view: "console", sector: null, unit: null };
+    show("console");
+    renderConsole();
+  }
+  $("open-console").addEventListener("click", showConsole);
+
+  async function renderConsole() {
+    clearGlobes();
+    const rows = await Promise.all(agents.map(async a => ({ a, s: await statsFor(a.id) })));
+
+    /* server facts */
+    const active = agents.filter(a => stateOf(a) === "active").length;
+    const standby = agents.filter(a => stateOf(a) === "standby").length;
+    const quar = agents.filter(a => stateOf(a) === "quarantined").length;
+    const totalOrders = rows.reduce((n, r) => n + r.s.tasks, 0);
+    const totalRefusals = rows.reduce((n, r) => n + r.s.refusals, 0);
+    const facts = [["units", agents.length], ["active", active], ["standby", standby],
+                   ["quarantined", quar], ["orders done", totalOrders], ["refusals", totalRefusals]];
+    $("cf-facts").innerHTML = facts.map(([k, v]) => `<div><b>${v}</b>${k}</div>`).join("");
+    try {
+      const h = await api("/health");
+      $("cf-health").textContent = `health ${h.status} · db ${h.db} · 127.0.0.1:8000 (loopback only)`;
+    } catch (e) {
+      $("cf-health").textContent = "health check failed";
+    }
+
+    /* load verdict from real orders/min */
+    const tpm = rows.reduce((n, r) => n + r.s.tpm, 0);
+    const v = tpm > 90 ? { cls: "over", label: "over the limit", note: `total load ${tpm} orders/min. reduce load or split the work.` }
+            : tpm > 45 ? { cls: "near", label: "near the limit", note: `total load ${tpm} orders/min. watch the busiest units.` }
+            :            { cls: "ok",   label: "can handle it",  note: `total load ${tpm} orders/min. room to spare for now.` };
+    $("verdict").className = "verdict " + v.cls;
+    $("verdict").textContent = v.label;
+    $("verdict-note").textContent = v.note;
+    const setG = (val, bar, pct, hot, warn) => {
+      $(bar).style.width = clamp(pct, 0, 100) + "%";
+      $(bar).className = pct > (hot || 90) ? "hot" : pct > (warn || 75) ? "warn" : "";
+    };
+    $("g-tpm").textContent = tpm;
+    setG(tpm, "t-tpm", tpm, 90, 45);
+    $("g-ref").textContent = totalRefusals;
+    setG(totalRefusals, "t-ref", totalRefusals * 10, 30, 10);
+    $("g-act").textContent = `${active}/${agents.length}`;
+    setG(agents.length ? (active / agents.length) * 100 : 0, "t-act", agents.length ? (active / agents.length) * 100 : 0, 100000, 100000);
+
+    /* units by load */
+    const grid = $("cf-units");
+    grid.innerHTML = agents.length ? "" : '<p class="small">no units yet</p>';
+    rows.forEach(({ a, s }) => {
+      const t = tier(s.tpm);
+      const tile = document.createElement("div");
+      tile.className = "unit-tile glow-" + t.key + (cfSelected === a.id ? " selected" : "");
+      tile.innerHTML = `<canvas width="200" height="200" role="button" tabindex="0" aria-label="${esc(a.name)}"></canvas>
+        <div class="uname"></div><div class="umeta"></div><div class="utier"></div>`;
+      tile.querySelector(".uname").textContent = a.name;
+      tile.querySelector(".umeta").textContent = `${s.tpm} orders/min, ${s.tasks} total, ${stateOf(a)}`;
+      tile.querySelector(".utier").textContent = t.label;
+      tile.querySelector(".utier").style.color = t.color;
+      const pick = () => { cfSelected = a.id; renderConsole(); };
+      const c = tile.querySelector("canvas");
+      c.addEventListener("click", pick);
+      c.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick(); } });
+      stopGlobes.push(drawGlobe(c, t.color, true, Math.random() * 6));
+      grid.append(tile);
+    });
+
+    /* detail */
+    const sel = rows.find(r => r.a.id === cfSelected);
+    if (!sel) {
+      $("cf-detail-title").textContent = "select a unit";
+      $("cf-detail").innerHTML = "";
+      $("cf-detail-note").textContent = "tap a unit's globe to see its real numbers.";
+    } else {
+      const { a, s } = sel;
+      $("cf-detail-title").textContent = a.name;
+      const fields = [["state", stateOf(a)], ["orders", s.tasks], ["success", s.tasks ? s.rate + "%" : "—"],
+                      ["refusals", s.refusals], ["orders/min", s.tpm], ["tools", a.allowed_tools.length || 0],
+                      ["last event", s.last ? s.last.step : "—"]];
+      $("cf-detail").innerHTML = fields.map(([k, v]) => `<div><b>${esc(String(v))}</b>${k}</div>`).join("");
+      $("cf-detail-note").textContent = `unit #${a.id} · purpose: ${a.purpose || "unassigned"} · computed from /agents and /logs only.`;
+    }
+
+    /* security flags — real: refusals >= 3 or quarantined */
+    const flagged = rows.filter(r => r.s.refusals >= 3 || r.a.quarantined);
+    const fbox = $("cf-flags");
+    fbox.innerHTML = "";
+    if (!flagged.length) {
+      fbox.innerHTML = '<p class="small">no security flags right now.</p>';
+    }
+    flagged.forEach(({ a, s }) => {
+      const row = document.createElement("div");
+      row.className = "flag";
+      row.innerHTML = `
+        <div class="flag-top"><span class="flag-rule"></span><span class="flag-unit"></span></div>
+        <div class="small flag-detail"></div>
+        <div class="flag-actions">
+          <button class="btn real" type="button"></button>
+          <button class="btn" type="button" disabled>alert owner — needs an alert channel</button>
+        </div>`;
+      row.querySelector(".flag-rule").textContent =
+        a.quarantined ? "unit quarantined" : `${s.refusals} refused orders in the log`;
+      row.querySelector(".flag-unit").textContent = a.name;
+      row.querySelector(".flag-detail").textContent =
+        `${s.tasks} orders total, success ${s.tasks ? s.rate + "%" : "—"}, state ${stateOf(a)}`;
+      const act = row.querySelector(".btn.real");
+      act.textContent = a.quarantined ? "release unit" : "quarantine unit";
+      act.addEventListener("click", async () => {
+        if (!a.quarantined && !confirm(`QUARANTINE ${a.name}?\n\nIt will refuse ALL orders until released.`)) return;
+        try {
+          await api(`/agents/${a.id}/${a.quarantined ? "unquarantine" : "quarantine"}`, { method: "POST" });
+          bustStats(a.id);
+          await reload();   // reload re-renders the console when it is the active view
+        } catch (e) { alert(`failed: ${e.message}`); }
+      });
+      fbox.append(row);
+    });
+
+    /* alert drafts — never sent, explicitly labeled */
+    const draftTargets = rows.filter(r => r.s.refusals >= 3 || r.s.tpm >= 20);
+    const dbox = $("cf-drafts");
+    dbox.innerHTML = "";
+    if (!draftTargets.length) {
+      dbox.innerHTML = '<p class="small">nobody is out of policy right now. nothing to draft.</p>';
+    }
+    draftTargets.forEach(({ a, s }) => {
+      const label = document.createElement("p");
+      label.className = "small";
+      label.textContent = `to: owner — about ${a.name} (${tier(s.tpm).label} load)`;
+      const ta = document.createElement("textarea");
+      ta.className = "draft";
+      ta.readOnly = true;
+      ta.value = `Unit "${a.name}" needs a look: ${s.refusals} refused orders in the audit log, ` +
+        `${s.tpm} orders/min, state ${stateOf(a)}. Review its activation, its allowed tools, ` +
+        `or quarantine it from the maker console. Source: this server's own /logs.`;
+      dbox.append(label, ta);
+    });
+  }
+
+  /* ---- dot globes ---- */
+  const GN = 260;
+  const gpts = Array.from({ length: GN }, (_, i) => {
+    const y = 1 - (i / (GN - 1)) * 2;
+    const r = Math.sqrt(Math.max(0, 1 - y * y));
+    const th = i * 2.39996;
+    return [Math.cos(th) * r, y, Math.sin(th) * r];
+  });
+
+  function drawGlobe(canvasEl, color, spinning, phase) {
+    const g = canvasEl.getContext("2d");
+    const size = canvasEl.width;
+    const R = size * 0.42;
+    let angle = phase, raf = 0;
+    const frame = () => {
+      g.clearRect(0, 0, size, size);
+      const cs = Math.cos(angle), sn = Math.sin(angle);
+      g.fillStyle = color;
+      gpts.forEach(p => {
+        const x = p[0] * cs - p[2] * sn;
+        const z = p[0] * sn + p[2] * cs;
+        const depth = (z + 1) / 2;
+        g.globalAlpha = 0.15 + depth * 0.85;
+        g.beginPath();
+        g.arc(size / 2 + x * R, size / 2 + p[1] * R, 0.9 + depth * 1.4, 0, Math.PI * 2);
+        g.fill();
+      });
+      g.globalAlpha = 1;
+      if (spinning && !reduced) { angle += 0.006; raf = requestAnimationFrame(frame); }
+    };
+    frame();
+    return () => cancelAnimationFrame(raf);
+  }
+
+  /* ---- LEVEL 1: the big draggable globe ---- */
+  const canvas = $("sphere");
+  const ctx = canvas.getContext("2d");
+  let W = 0, H = 0, DPR = 1;
+
+  function resize() {
+    DPR = Math.min(window.devicePixelRatio || 1, 2);
+    const r = canvas.getBoundingClientRect();
+    W = r.width; H = r.height;
+    canvas.width = Math.round(W * DPR);
+    canvas.height = Math.round(H * DPR);
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  }
+  window.addEventListener("resize", resize);
+
+  const N = 1100;
+  const dots = Array.from({ length: N }, (_, i) => {
+    const y = 1 - (i / (N - 1)) * 2;
+    const r = Math.sqrt(Math.max(0, 1 - y * y));
+    const th = i * 2.39996;
+    return { p: [Math.cos(th) * r, y, Math.sin(th) * r], hue: 130 + (i / N) * 85 };
+  });
+
+  let rotY = 0.6, rotX = -0.3, spin = 0.6;
+  let hovering = false, dragging = false, moved = 0, lastX = 0, lastY = 0;
+  let hoverSector = null;
+
+  function rotate(x, y, z) {
+    const cy = Math.cos(rotY), sy = Math.sin(rotY);
+    const x1 = x * cy + z * sy, z1 = -x * sy + z * cy;
+    const cx = Math.cos(rotX), sx = Math.sin(rotX);
+    return [x1, y * cx - z1 * sx, y * sx + z1 * cx];
+  }
+
+  function sectorAt(px, py) {
+    const R = Math.min(W, H) * 0.42;
+    let best = null, bestD = 30;
+    sectors.forEach(s => {
+      const [x, y, z] = rotate(...s.v);
+      if (z < 0) return;
+      const d = Math.hypot(W / 2 + x * R - px, H / 2 + y * R - py);
+      if (d < bestD) { bestD = d; best = s; }
+    });
+    return best;
+  }
+
+  canvas.addEventListener("pointerdown", e => {
+    dragging = true; moved = 0; lastX = e.clientX; lastY = e.clientY;
+    canvas.setPointerCapture(e.pointerId);
+    canvas.classList.add("grabbing");
+  });
+  canvas.addEventListener("pointermove", e => {
+    const rect = canvas.getBoundingClientRect();
+    const px = e.clientX - rect.left, py = e.clientY - rect.top;
+    hovering = true;
+    if (dragging) {
+      const dx = e.clientX - lastX, dy = e.clientY - lastY;
+      moved += Math.abs(dx) + Math.abs(dy);
+      rotY += dx * 0.006;
+      rotX = clamp(rotX + dy * 0.006, -1.2, 1.2);
+      spin = rotY;
+      lastX = e.clientX; lastY = e.clientY;
+      hoverSector = null;
+    } else {
+      hoverSector = sectorAt(px, py);
+      canvas.style.cursor = hoverSector ? "pointer" : "grab";
+    }
+  });
+  canvas.addEventListener("pointerleave", () => { hovering = false; hoverSector = null; });
+  canvas.addEventListener("pointerup", e => {
+    dragging = false;
+    canvas.classList.remove("grabbing");
+    if (moved < 6) {
+      const rect = canvas.getBoundingClientRect();
+      const hit = sectorAt(e.clientX - rect.left, e.clientY - rect.top);
+      if (hit) showCards(hit);
+    }
+  });
+
+  function updateRotation() {
+    if (dragging) return;
+    if (!reduced) spin += hovering ? 0.0007 : 0.0018;
+    rotY = spin;
+  }
+
+  function drawMapGlobe(t) {
+    if (current.view !== "map") return;
+    ctx.clearRect(0, 0, W, H);
+    const R = Math.min(W, H) * 0.42;
+    const cx = W / 2, cy = H / 2;
+    dots.forEach(d => {
+      const [x, y, z] = rotate(d.p[0], d.p[1], d.p[2]);
+      const depth = (z + 1) / 2;
+      ctx.globalAlpha = 0.1 + depth * 0.9;
+      ctx.fillStyle = `hsl(${d.hue}, 100%, ${60 + depth * 24}%)`;
+      ctx.beginPath();
+      ctx.arc(cx + x * R, cy + y * R, 0.7 + depth * 1.3, 0, Math.PI * 2);
+      ctx.fill();
+    });
+    ctx.globalAlpha = 1;
+    sectors.forEach(s => {
+      const [x, y, z] = rotate(...s.v);
+      if (z < -0.05) return;
+      const px = cx + x * R, py = cy + y * R;
+      const front = Math.max(0, z);
+      const isHover = s === hoverSector;
+      if (s.live && !reduced) {
+        const phase = (t / 1000 % 2.4) / 2.4;
+        ctx.globalAlpha = (1 - phase) * 0.7 * front;
+        ctx.strokeStyle = "#5cff9d";
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.arc(px, py, 8 + phase * 26, 0, Math.PI * 2); ctx.stroke();
+        ctx.globalAlpha = 1;
+      }
+      if (isHover) {
+        ctx.strokeStyle = "#e8f3ff";
+        ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.arc(px, py, 18, 0, Math.PI * 2); ctx.stroke();
+      }
+      ctx.globalAlpha = 0.4 + front * 0.6;
+      ctx.fillStyle = s.red ? "#ff3b4e" : s.live ? "#5cff9d" : "#6b7a8c";
+      ctx.beginPath(); ctx.arc(px, py, 5 + front * 2, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = 1;
+      if (z > 0.15) {
+        ctx.fillStyle = isHover ? "#ffffff" : "#e8f3ff";
+        ctx.font = "13px ui-monospace, Menlo, Consolas, monospace";
+        ctx.fillText(s.name, px + 14, py + 4);
+        ctx.fillStyle = "#7e8fa5";
+        ctx.font = "11px ui-monospace, Menlo, Consolas, monospace";
+        ctx.fillText(`${s.units.length} unit${s.units.length > 1 ? "s" : ""}`, px + 14, py + 19);
+      }
+    });
+  }
+
+  function loop(t) {
+    updateRotation();
+    drawMapGlobe(t);
+    requestAnimationFrame(loop);
+  }
+
+  /* ---- readouts: real counts, no placeholders ---- */
+  async function fillReadouts() {
+    const all = agents;
+    const count = s => all.filter(a => stateOf(a) === s).length;
+    const active = count("active");
+    const pct = all.length ? Math.round((active / all.length) * 100) : 0;
+    let ordersDone = 0;
+    await Promise.all(all.map(async a => { ordersDone += (await statsFor(a.id)).tasks; }));
+    $("ro-left").innerHTML = `
+      units <b>${all.length}</b><br>
+      active now <b>${active}</b>
+      <span class="bar"><span style="width:${pct}%"></span></span><br>
+      sectors <b>${sectors.length}</b>`;
+    $("ro-right").innerHTML = `
+      standby <b>${count("standby")}</b><br>
+      quarantined <b>${count("quarantined")}</b><br>
+      orders done <b>${ordersDone}</b>`;
+    $("map-empty").textContent = all.length
+      ? ""
+      : "0 units — none registered yet. use the panel below, then reload the globe.";
+    renderSrNav();
+  }
+
+  function renderSrNav() {
+    const nav = $("sr-nav");
+    nav.innerHTML = "";
+    sectors.forEach(s => {
+      const b = document.createElement("button");
+      b.textContent = s.name;
+      b.addEventListener("click", () => showCards(s));
+      nav.append(b);
+    });
+  }
+
+  /* ---- register ---- */
+  $("r-submit").addEventListener("click", async () => {
+    const t = $("r-toast");
+    const tools = $("r-tools").value.split(",").map(s => s.trim()).filter(Boolean);
+    try {
+      const a = await api("/agents", {
+        method: "POST",
+        body: JSON.stringify({
+          name: $("r-name").value.trim(),
+          purpose: $("r-purpose").value.trim(),
+          allowed_tools: tools
+        })
+      });
+      t.className = "toast-r g";
+      t.textContent = `registered #${a.id} ${a.name} — standby`;
+      $("r-name").value = ""; $("r-purpose").value = ""; $("r-tools").value = "";
+      await reload();
+    } catch (e) {
+      t.className = "toast-r r";
+      t.textContent = `rejected — ${e.message}`;
+    }
+  });
+
+  /* ---- LEVEL 2: sector cards ---- */
+  function makeCard(o) {
+    const card = document.createElement("article");
+    card.className = "card " + (o.className || "");
+    card.innerHTML = `
+      <div class="card-top"><span>${esc(o.kicker)}</span><span class="tag ${esc(o.tag)}">${esc(o.tag)}</span></div>
+      <div class="card-art"><canvas width="300" height="300" aria-hidden="true"></canvas></div>
+      <h3></h3>
+      <p class="role"></p>
+      <div class="big">${o.big}<small>${esc(o.bigLabel)}</small></div>
+      <ul class="items"></ul>`;
+    card.querySelector("h3").textContent = o.title;
+    card.querySelector(".role").textContent = o.role;
+    const ul = card.querySelector("ul.items");
+    if (o.items.length) {
+      o.items.forEach(t => { const li = document.createElement("li"); li.textContent = t; ul.append(li); });
+    } else {
+      const li = document.createElement("li");
+      li.className = "none";
+      li.textContent = o.emptyText;
+      ul.append(li);
+    }
+    if (o.button) {
+      const b = document.createElement("button");
+      b.className = "cta";
+      b.type = "button";
+      b.textContent = o.button.label;
+      b.addEventListener("click", o.button.onClick);
+      card.append(b);
+    }
+    const artCanvas = card.querySelector("canvas");
+    stopGlobes.push(drawGlobe(artCanvas, o.color, o.spinning, Math.random() * 6));
+    if (o.onGlobeTap) {
+      artCanvas.classList.add("tappable");
+      artCanvas.addEventListener("click", o.onGlobeTap);
+    }
+    if (o.minimal) card.classList.add("minimal");
+    return card;
+  }
+
+  async function showCards(sector) {
+    clearGlobes();
+    current = { view: "cards", sector, unit: null };
+    const wrap = $("cards");
+    wrap.innerHTML = '<span class="neutral">loading…</span>';
+    show("cards");
+
+    const stats = await Promise.all(sector.units.map(a => statsFor(a.id)));
+    wrap.innerHTML = "";
+    if (!sector.units.length) {
+      wrap.innerHTML = '<span class="neutral">no units in this sector</span>';
+      return;
+    }
+    let bestIdx = 0;
+    stats.forEach((s, i) => { if (s.rate > stats[bestIdx].rate) bestIdx = i; });
+    sector.units.forEach((a, i) => {
+      const st = stateOf(a);
+      const s = stats[i];
+      wrap.append(makeCard({
+        kicker: "unit", tag: st, title: a.name,
+        role: a.purpose || a.description || "no purpose set",
+        big: s.tasks ? s.rate + "%" : "—", bigLabel: "success rate",
+        items: a.allowed_tools.length ? a.allowed_tools.map(t => `tool: ${t}`) : [],
+        emptyText: "no tools (by design)",
+        color: stateColor(st), spinning: st === "active",
+        className: (i === bestIdx ? "featured " : "") + st,
+        button: { label: "open unit", onClick: () => showUnit(a.id) },
+      }));
+    });
+    renderCrumbs();
+  }
+
+  /* ---- LEVEL 3: one unit, three state cards ---- */
+  async function showUnit(id) {
+    const a = agents.find(x => x.id === id);
+    if (!a) return showMap();
+    clearGlobes();
+    current = { view: "unit", sector: current.sector, unit: a };
+    const st = stateOf(a);
+
+    $("unit-name").textContent = a.name;
+    $("unit-name").style.color = stateColor(st);
+    $("unit-role").textContent = `#${a.id} · ${a.purpose || a.description || "no purpose set"}`;
+
+    const tog = $("act-toggle");
+    tog.textContent = a.is_active ? "DEACTIVATE" : "ACTIVATE";
+    tog.className = a.is_active ? "a-blue" : "a-green";
+    const quar = $("act-quar");
+    quar.textContent = a.quarantined ? "RELEASE" : "QUARANTINE";
+    quar.className = a.quarantined ? "a-green" : "a-red";
+
+    $("composer").classList.remove("open");
+    $("toast").textContent = "";
+
+    const s = await statsFor(a.id);
+    const wrap = $("unit-cards");
+    wrap.innerHTML = "";
+
+    const isActive = st === "active";
+    const isQuarantined = st === "quarantined";
+    const isStandby = st === "standby";
+
+    wrap.append(makeCard({
+      kicker: "state", tag: "active", title: "active", role: "switched on, accepts orders",
+      big: isActive ? "1" : "0", bigLabel: "unit live",
+      items: isActive
+        ? ["accepting orders", ...(a.allowed_tools.length ? a.allowed_tools.map(t => `tool: ${t}`) : ["no tools (by design)"])]
+        : [],
+      emptyText: "not active",
+      color: "#5cff9d", spinning: true,
+      className: "active" + (isActive ? " featured" : ""),
+    }));
+    wrap.append(makeCard({
+      kicker: "state", tag: "quarantined", title: "quarantined", role: "locked by a deliberate action",
+      big: isQuarantined ? "locked" : "0", bigLabel: isQuarantined ? "now" : "none",
+      items: isQuarantined
+        ? [`refused orders: ${s.refusals}`, ...(s.last ? [`last event: ${s.last.step}`] : [])]
+        : [],
+      emptyText: "not quarantined",
+      color: "#ff3b4e", spinning: false,
+      className: "quarantined" + (isQuarantined ? " featured" : ""),
+    }));
+    wrap.append(makeCard({
+      kicker: "state", tag: "standby", title: "standby", role: "off, waiting for orders",
+      big: s.tasks, bigLabel: "orders done",
+      items: isStandby ? ["every order refused + logged", ...(s.last ? [`last event: ${s.last.step}`] : [])] : [],
+      emptyText: "not on standby",
+      color: "#4f8bff", spinning: false,
+      className: "standby" + (isStandby ? " featured" : ""),
+      minimal: true,
+      onGlobeTap: () => {
+        $("composer").classList.add("open");
+        $("order-input").focus();
+      },
+    }));
+
+    $("unit-note").textContent =
+      `state = ${st} · real fields (quarantined=${a.quarantined}, is_active=${a.is_active}) · ` +
+      `tap the standby globe to give an order — the server refuses off-schedule orders itself.`;
+
+    await loadLogs(a.id);
+    renderCrumbs();
+    show("unit");
+  }
+
+  /* head actions */
+  $("act-toggle").addEventListener("click", async () => {
+    const a = current.unit;
+    if (!a) return;
+    try {
+      await api(`/agents/${a.id}/${a.is_active ? "deactivate" : "activate"}`, { method: "POST" });
+      bustStats(a.id);
+      await reload();
+      showUnit(a.id);
+    } catch (e) { alert(`failed: ${e.message}`); }
+  });
+  $("act-quar").addEventListener("click", async () => {
+    const a = current.unit;
+    if (!a) return;
+    if (!a.quarantined &&
+        !confirm("QUARANTINE this unit?\n\nIt will refuse ALL orders until released.")) return;
+    try {
+      await api(`/agents/${a.id}/${a.quarantined ? "unquarantine" : "quarantine"}`, { method: "POST" });
+      bustStats(a.id);
+      await reload();
+      showUnit(a.id);
+    } catch (e) { alert(`failed: ${e.message}`); }
+  });
+
+  /* order composer — REAL submission */
+  $("order-input").addEventListener("keydown", async e => {
+    if (e.key !== "Enter") return;
+    const a = current.unit;
+    const text = e.currentTarget.value.trim();
+    const toast = $("toast");
+    if (!a || !text) return;
+    try {
+      const r = await api(`/agents/${a.id}/tasks`, {
+        method: "POST",
+        body: JSON.stringify({ task_text: text })
+      });
+      toast.className = "toast" + (r.status === "completed" ? "" : " b");
+      toast.textContent = `${r.status.toUpperCase()} · order ${r.task_id} · ${r.output || "(no output)"}`;
+      e.currentTarget.value = "";
+    } catch (err) {
+      const tid = err.detail && err.detail.task_id;
+      toast.className = "toast r";
+      toast.textContent = `${err.status} ${err.message}` + (tid ? ` · refusal logged · order ${tid}` : "");
+    }
+    bustStats(a.id);
+    await Promise.all([loadLogs(a.id)]);
+    // refresh the state cards' numbers without losing the open composer
+    const s = await statsFor(a.id);
+    const bigs = document.querySelectorAll("#unit-cards .big");
+    if (bigs[2]) bigs[2].innerHTML = `${s.tasks}<small>orders done</small>`;
+    if (bigs[1] && a.quarantined) bigs[1].innerHTML = `locked<small>now</small>`;
+  });
+
+  /* ---- audit log ---- */
+  const clock = iso => String(iso).slice(11, 19);
+  async function loadLogs(id) {
+    const box = $("logs");
+    try {
+      const rows = await api(`/agents/${id}/logs`);
+      if (!rows.length) {
+        box.innerHTML = '<span class="neutral">no events yet — nothing has run or been refused</span>';
+        return;
+      }
+      box.innerHTML = rows.slice().reverse().map(r => {
+        const cls = r.status === "ok" ? "ok" : (r.status === "rejected" || r.status === "error") ? "rej" : "neutral";
+        return `<div class="log-line">
+          <span class="t">${clock(r.created_at)}</span>
+          <span>${esc(r.step)}</span>
+          <span class="s ${cls}">${esc(r.status)}</span>
+          <span class="d ${cls}">${esc(r.detail)}</span>
+        </div>`;
+      }).join("");
+    } catch (e) {
+      box.innerHTML = `<span class="rej">log load failed — ${esc(e.message)}</span>`;
+    }
+  }
+
+  /* ---- data load ---- */
+  async function reload() {
+    try { agents = await api("/agents"); }
+    catch (e) { agents = []; }
+    sectors = buildSectors();
+    loadHealth();
+    fillReadouts();
+    if (current.view === "cards" && current.sector) showCards(current.sector);
+    if (current.view === "console") renderConsole();
+  }
+
+  resize();
+  reload();
+  renderCrumbs();
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
