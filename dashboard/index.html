@@ -2,1151 +2,1138 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>WATCHER — containment</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>WATCHER — containment console</title>
 <style>
-  :root {
-    --bg: #03060a;
-    --ink: #e8f3ff;
-    --muted: #7e8fa5;
-    --green: #5cff9d;
-    --blue: #4f8bff;
-    --amber: #ffb547;
-    --red: #ff3b4e;
-    --grey: #5b6a7a;
-    --line: rgba(160, 200, 255, .12);
-  }
-  * { box-sizing: border-box; }
-  html, body { min-height: 100%; }
-  body {
-    margin: 0; background: var(--bg); color: var(--ink);
-    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-    font-size: 14px; line-height: 1.6; overflow-x: hidden;
-  }
-  body::before {
-    content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 6;
-    background: repeating-linear-gradient(to bottom, rgba(92,255,157,.03) 0 1px, transparent 1px 3px);
-  }
-  :focus-visible { outline: 1px solid var(--green); outline-offset: 3px; }
-  button, input, textarea { font: inherit; color: inherit; }
-  button { background: none; border: 0; cursor: pointer; }
-  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+@font-face{font-family:"Space Grotesk";src:url("./fonts/space-grotesk-latin-400-normal.woff2") format("woff2");font-weight:400;font-display:swap}
+@font-face{font-family:"Space Grotesk";src:url("./fonts/space-grotesk-latin-500-normal.woff2") format("woff2");font-weight:500;font-display:swap}
+@font-face{font-family:"Space Grotesk";src:url("./fonts/space-grotesk-latin-700-normal.woff2") format("woff2");font-weight:700;font-display:swap}
+@font-face{font-family:"JetBrains Mono";src:url("./fonts/jetbrains-mono-latin-400-normal.woff2") format("woff2");font-weight:400;font-display:swap}
+@font-face{font-family:"JetBrains Mono";src:url("./fonts/jetbrains-mono-latin-700-normal.woff2") format("woff2");font-weight:700;font-display:swap}
 
-  header {
-    display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;
-    padding: 14px 26px; border-bottom: 1px solid var(--line);
-  }
-  header h1 { margin: 0; font-size: 14px; font-weight: 500; letter-spacing: .14em; }
-  .status { font-size: 12px; color: var(--muted); }
-  .status b { color: var(--green); font-weight: 500; }
-  .status b.bad { color: var(--red); }
-  .head-right { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
-  .key { display: flex; gap: 16px; font-size: 12px; color: var(--muted); }
-  .key i { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 7px; vertical-align: middle; }
-  .console-btn { padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line); font-size: 12px; color: var(--muted); }
-  .console-btn:hover { border-color: var(--blue); color: var(--ink); }
-  .console-btn.danger { border-color: rgba(255,59,78,.5); color: var(--red); }
-  .console-btn.danger:hover { background: rgba(255,59,78,.08); }
+/* ============================================================
+   tokens — Geist-style steps, one accent, colour = meaning only
+   ============================================================ */
+:root{
+  --bg:#09090b; --bg-elev:#0d0d11; --bg-inset:#060608;
+  --surface:rgba(255,255,255,.02); --surface-h:rgba(255,255,255,.045); --surface-a:rgba(255,255,255,.07);
+  --border:rgba(255,255,255,.08); --border-h:rgba(255,255,255,.16); --border-a:rgba(255,255,255,.24);
+  --text:#fafafa; --text-2:#a1a1aa; --text-3:#63636b;
+  --accent:#4f7cff; --accent-soft:rgba(79,124,255,.14);
+  --green:#2fd671; --amber:#f5a623; --red:#ff453a; --red-soft:rgba(255,69,58,.12);
+  --font:"Space Grotesk",ui-sans-serif,system-ui,-apple-system,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+  --sb:224px;
+  --ease:cubic-bezier(.25,.1,.25,1);
+  --t-fast:140ms; --t:200ms;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;height:100%}
+body{background:var(--bg);color:var(--text);font:14px/1.55 var(--font);-webkit-font-smoothing:antialiased;overflow-x:hidden}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:radial-gradient(1100px 500px at 18% -10%,rgba(79,124,255,.06),transparent 62%)}
+button,input{font:inherit;color:inherit}
+button{background:none;border:1px solid var(--border);padding:0 13px;height:32px;border-radius:8px;cursor:pointer;
+  display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:500;
+  transition:border-color var(--t-fast) var(--ease),background var(--t-fast) var(--ease),color var(--t-fast) var(--ease),transform var(--t-fast) var(--ease),opacity var(--t-fast)}
+button:hover{border-color:var(--border-h);background:var(--surface-h)}
+button:active{transform:scale(.975);background:var(--surface-a)}
+button:disabled{opacity:.38;cursor:not-allowed;transform:none}
+button:focus-visible,input:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button.primary{background:var(--text);color:#0a0a0b;border-color:var(--text);font-weight:600}
+button.primary:hover{background:#e4e4e7;border-color:#e4e4e7}
+button.danger{color:var(--red);border-color:rgba(255,69,58,.35)}
+button.danger:hover{background:var(--red-soft);border-color:var(--red)}
+button.ghost{border-color:transparent;color:var(--text-2)}
+button.ghost:hover{border-color:var(--border);color:var(--text)}
+input{background:var(--bg-inset);border:1px solid var(--border);padding:0 12px;height:34px;border-radius:8px;min-width:0;flex:1;
+  transition:border-color var(--t-fast),box-shadow var(--t-fast)}
+input::placeholder{color:var(--text-3)}
+input:hover{border-color:var(--border-h)}
+input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.mut{color:var(--text-2)}.dim{color:var(--text-3)}
+.g{color:var(--green)}.a{color:var(--amber)}.r{color:var(--red)}.b{color:var(--accent)}
+.pv{font-style:normal;font-size:9px;letter-spacing:.1em;color:var(--accent);border:1px dashed rgba(79,124,255,.5);
+  padding:1px 5px;margin-left:7px;border-radius:4px;vertical-align:1px;font-family:var(--mono);font-weight:400}
+.lbl{font:500 11px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--text-3)}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,.09);border-radius:6px;border:2px solid var(--bg)}
+::-webkit-scrollbar-track{background:transparent}
 
-  .crumbs { padding: 12px 26px 0; color: var(--muted); font-size: 12px; min-height: 32px; }
-  .crumbs button { color: var(--green); }
-  .crumbs button:hover { text-decoration: underline; }
-  .view { display: none; padding: 8px 26px 56px; animation: in .3s ease-out; }
-  .view.active { display: block; }
-  @keyframes in { from { opacity: 0; } to { opacity: 1; } }
+/* ================= layout: sidebar + main ================= */
+#sb{position:fixed;left:0;top:0;bottom:0;width:var(--sb);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;z-index:50;background:rgba(9,9,11,.8);backdrop-filter:blur(12px)}
+#sb .brand{display:flex;align-items:center;gap:10px;padding:18px 18px 16px;font-weight:700;letter-spacing:.22em;font-size:13px}
+#sb .brand .mk{width:20px;height:20px;border-radius:6px;background:linear-gradient(135deg,var(--accent),#7c5cff);
+  box-shadow:0 0 18px -4px var(--accent);flex:none}
+#sb .brand em{font-style:normal;color:var(--text-3);font-weight:400;font-size:9px;letter-spacing:.18em;display:block;margin-top:2px}
+#nav{display:flex;flex-direction:column;gap:1px;padding:6px 10px;flex:1;overflow:auto}
+#nav button{border:none;height:36px;padding:0 10px;border-radius:8px;color:var(--text-2);font-weight:400;font-size:13.5px;justify-content:flex-start;width:100%;background:none}
+#nav button:hover{background:var(--surface-h);color:var(--text);border:none}
+#nav button.cur{background:var(--surface-a);color:var(--text);font-weight:500}
+#nav button svg{width:15px;height:15px;flex:none;opacity:.75}
+#nav button.cur svg{opacity:1;color:var(--accent)}
+#nav .nbadge{margin-left:auto;font:400 10px var(--mono);color:var(--text-3)}
+#sbfoot{padding:12px 18px;border-top:1px solid var(--border);display:flex;align-items:center;gap:8px;font:400 11px var(--mono);color:var(--text-3)}
+#sbfoot i{width:7px;height:7px;border-radius:50%;background:var(--text-3);flex:none}
+#sbfoot i.ok{background:var(--green);box-shadow:0 0 8px var(--green)}
+#sbfoot i.err{background:var(--red);box-shadow:0 0 8px var(--red)}
 
-  /* ---------- containment globe ---------- */
-  .stage { position: relative; height: min(72vh, 700px); min-height: 480px; max-width: 1100px; margin: 0 auto; }
-  .stage::before, .stage::after {
-    content: ""; position: absolute; width: 26px; height: 26px; border-color: var(--green);
-    border-style: solid; border-width: 0; pointer-events: none; opacity: .7;
-  }
-  .stage::before { top: 0; left: 0; border-top-width: 1px; border-left-width: 1px; }
-  .stage::after { bottom: 0; right: 0; border-bottom-width: 1px; border-right-width: 1px; }
-  #sphere { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: grab; touch-action: none; }
-  #sphere.grabbing { cursor: grabbing; }
-  .readout { position: absolute; top: 18px; font-size: 12px; color: var(--muted); line-height: 1.9; pointer-events: none; }
-  .readout.left { left: 18px; }
-  .readout.right { right: 18px; text-align: right; }
-  .readout b { color: var(--ink); font-weight: 500; }
-  .readout .bar { display: inline-block; width: 80px; height: 2px; background: var(--line); vertical-align: middle; margin-left: 8px; }
-  .readout .bar span { display: block; height: 100%; background: var(--green); }
-  .hint { position: absolute; left: 0; right: 0; bottom: 14px; margin: 0; text-align: center; color: var(--muted); font-size: 12px; pointer-events: none; }
-  .map-empty {
-    position: absolute; inset: 0; display: grid; place-items: center; text-align: center;
-    color: var(--muted); font-size: 13px; pointer-events: none; padding: 0 20px;
-  }
+#shell{margin-left:var(--sb);position:relative;z-index:1;min-height:100%;display:flex;flex-direction:column}
+#top{position:sticky;top:0;z-index:40;height:52px;display:flex;align-items:center;gap:12px;padding:0 24px;
+  border-bottom:1px solid var(--border);background:rgba(9,9,11,.78);backdrop-filter:blur(12px)}
+#top .pbtn{color:var(--text-2);font-size:12.5px;font-family:var(--mono);letter-spacing:.02em;height:30px;padding:0 10px;border-radius:7px}
+#top .pbtn kbd{font:500 10px var(--mono);border:1px solid var(--border);border-radius:4px;padding:1px 5px;margin-left:6px;color:var(--text-3)}
+#top .sp{flex:1}
+#stopwrap{position:relative;display:inline-flex}
+#stopwrap svg.ring{position:absolute;left:50%;top:50%;width:34px;height:34px;transform:translate(-50%,-50%) rotate(-90deg);pointer-events:none}
+#stopwrap svg.ring circle{fill:none;stroke:var(--red);stroke-width:2;stroke-linecap:round;
+  stroke-dasharray:88;stroke-dashoffset:88;opacity:0;transition:opacity 120ms}
+#stopwrap.holding svg.ring circle{opacity:1}
+main{padding:24px 28px 48px;max-width:1280px;width:100%;margin:0 auto;flex:1}
 
-  /* ---------- register ---------- */
-  .register { max-width: 1100px; margin: 18px auto 0; }
-  .register .panel { padding: 16px; }
-  .register .row { display: flex; gap: 10px; flex-wrap: wrap; }
-  .register input {
-    flex: 1; min-width: 170px; padding: 9px 12px; background: var(--bg);
-    border: 1px solid var(--line); border-radius: 10px; color: var(--ink); font: inherit; font-size: 13px;
-  }
-  .register button.go {
-    padding: 9px 18px; border-radius: 999px; background: #fff; color: #05080c;
-    font-size: 13px; font-weight: 500;
-  }
-  .register button.go:hover { background: var(--green); }
-  .hint-line { margin-top: 8px; font-size: 11px; color: var(--muted); }
-  .toast-r { margin-top: 8px; font-size: 12px; min-height: 18px; }
-  .toast-r.g { color: var(--green); } .toast-r.r { color: var(--red); }
+/* ================= toasts ================= */
+#toasts{position:fixed;top:64px;right:20px;z-index:95;display:flex;flex-direction:column;gap:8px;max-width:360px;pointer-events:none}
+.toast{background:var(--bg-elev);border:1px solid var(--border-h);border-radius:10px;padding:11px 14px;font-size:13px;
+  box-shadow:0 12px 40px rgba(0,0,0,.55);animation:tin var(--t) var(--ease);display:flex;gap:10px;align-items:flex-start}
+.toast.out{animation:tout var(--t) var(--ease) forwards}
+.toast i{width:6px;height:6px;border-radius:50%;margin-top:6px;flex:none;background:var(--text-3)}
+.toast.ok i{background:var(--green)}.toast.warn i{background:var(--amber)}.toast.danger i{background:var(--red)}
+.toast.mono{font-family:var(--mono);font-size:12px}
+@keyframes tin{from{opacity:0;transform:translateX(16px)}}
+@keyframes tout{to{opacity:0;transform:translateX(16px)}}
+#haz{position:fixed;top:0;left:0;right:0;z-index:96;text-align:center;padding:12px;font:500 12px var(--mono);letter-spacing:.16em;
+  background:repeating-linear-gradient(45deg,rgba(255,69,58,.9) 0 14px,rgba(120,10,10,.92) 14px 28px);color:#fff;
+  transform:translateY(-100%);transition:transform 280ms var(--ease)}
+#haz.show{transform:translateY(0)}
+#haz.hide{transition:transform 320ms var(--ease);transform:translateY(-100%)}
+#sweep{position:fixed;top:0;bottom:0;left:-5px;width:3px;background:var(--red);box-shadow:0 0 28px var(--red);z-index:97;opacity:0;pointer-events:none}
+#sweep.go{animation:swp .8s linear}
+@keyframes swp{from{left:-5px;opacity:1}to{left:100%;opacity:1}}
 
-  /* ---------- shared card style ---------- */
-  .cards { display: flex; flex-wrap: wrap; gap: 30px; justify-content: center; padding: 34px 0 0; }
-  .card {
-    position: relative; width: 290px; padding: 22px 22px 20px; border-radius: 20px; text-align: left; color: var(--ink);
-    background: linear-gradient(180deg, #0b1118 0%, #06090e 100%);
-    border: 1px solid var(--line);
-    box-shadow: 0 24px 44px -24px rgba(0,0,0,.95);
-    transition: transform .3s ease, border-color .3s ease;
-  }
-  .card:hover { border-color: rgba(92,255,157,.35); }
-  .card.featured { border-color: rgba(92,255,157,.55); box-shadow: 0 0 0 1px rgba(92,255,157,.15), 0 0 26px -10px rgba(92,255,157,.35), 0 24px 44px -24px rgba(0,0,0,.95); }
-  .card.quarantined { border-color: rgba(255,59,78,.4); }
-  .card.quarantined.featured { border-color: rgba(255,59,78,.6); box-shadow: 0 0 0 1px rgba(255,59,78,.18), 0 0 26px -10px rgba(255,59,78,.4), 0 24px 44px -24px rgba(0,0,0,.95); }
-  .card.standby { border-color: rgba(79,139,255,.35); }
-  .card.standby.featured { border-color: rgba(79,139,255,.55); box-shadow: 0 0 0 1px rgba(79,139,255,.15), 0 0 26px -10px rgba(79,139,255,.35), 0 24px 44px -24px rgba(0,0,0,.95); }
-  .card-top { display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: var(--muted); letter-spacing: .06em; }
-  .tag { padding: 3px 10px; border-radius: 999px; border: 1px solid var(--line); font-size: 11px; color: var(--muted); }
-  .tag.active { color: var(--green); border-color: rgba(92,255,157,.5); }
-  .tag.quarantined { color: var(--red); border-color: rgba(255,59,78,.55); }
-  .tag.standby { color: #9fc3ff; border-color: rgba(79,139,255,.5); }
-  .card-art { display: grid; place-items: center; height: 150px; margin: 6px 0 2px; }
-  .card-art canvas { width: 150px; height: 150px; display: block; }
-  .card h3 { margin: 4px 0 2px; font-size: 21px; font-weight: 500; color: #fff; }
-  .role { margin: 0 0 14px; font-size: 12px; color: var(--muted); }
-  .big { font-size: 40px; font-weight: 300; color: #fff; letter-spacing: -.02em; line-height: 1.1; }
-  .big small { font-size: 13px; color: var(--muted); margin-left: 8px; letter-spacing: 0; }
-  ul.items { list-style: none; padding: 0; margin: 14px 0 16px; font-size: 12px; }
-  ul.items li { padding: 7px 0; border-top: 1px solid var(--line); display: flex; gap: 10px; color: var(--ink); }
-  ul.items li::before { content: "\2713"; color: var(--green); }
-  ul.items li.none { color: var(--muted); }
-  ul.items li.none::before { content: ""; }
-  .cta { width: 100%; padding: 12px; border-radius: 999px; background: #fff; color: #05080c; font-size: 13px; font-weight: 500; transition: background .2s ease; }
-  .cta:hover { background: var(--green); }
-  .card.minimal .role, .card.minimal .big, .card.minimal ul.items { display: none; }
-  .card.minimal { padding-bottom: 22px; }
-  .card-art canvas.tappable { cursor: pointer; }
-  .card-art canvas.tappable:hover { filter: drop-shadow(0 0 10px rgba(79,139,255,.7)); }
+/* ================= panels / tables ================= */
+.panel{border:1px solid var(--border);border-radius:12px;background:var(--surface);position:relative}
+.panel.pad{padding:16px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:960px){.grid2{grid-template-columns:1fr}}
+h2{margin:0;font-size:19px;font-weight:600;letter-spacing:-.01em}
+h3{margin:0 0 10px;font:500 11px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--text-3)}
+.bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:8px 0}
+ul.kv{list-style:none;padding:0;margin:0}
+ul.kv li{display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-top:1px solid var(--border);font-size:13px;align-items:center}
+ul.kv li:first-child{border-top:none}
+ul.kv b{font-family:var(--mono);font-weight:500;font-size:12px;font-variant-numeric:tabular-nums}
+.chips span{border:1px solid var(--border);padding:2px 9px;margin:0 6px 6px 0;border-radius:6px;font:400 11px var(--mono);display:inline-block;color:var(--text-2)}
+.tbl{width:100%;border-collapse:collapse}
+.tbl th{font:500 10.5px/1 var(--mono);letter-spacing:.13em;text-transform:uppercase;color:var(--text-3);
+  text-align:left;padding:9px 12px;border-bottom:1px solid var(--border);font-weight:500;white-space:nowrap}
+.tbl td{padding:10px 12px;border-bottom:1px solid var(--border);font-size:13.5px;vertical-align:middle}
+.tbl tr:last-child td{border-bottom:none}
+.tbl tbody tr{cursor:default;transition:background var(--t-fast)}
+.tbl tbody tr.click{cursor:pointer}
+.tbl tbody tr.click:hover{background:var(--surface-h)}
+.tbl .r-al{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:12px}
+.tbl .mono{font-family:var(--mono);font-size:12px}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex:none;margin-right:9px;vertical-align:0}
+.dot.active{background:var(--green);box-shadow:0 0 8px var(--green)}
+.dot.standby{background:var(--accent);box-shadow:0 0 8px var(--accent)}
+.dot.quarantined{background:var(--red);box-shadow:0 0 8px var(--red);animation:pls 1.8s ease-in-out infinite}
+@keyframes pls{0%,100%{opacity:1}50%{opacity:.45}}
+.st-txt{font:500 11px var(--mono);letter-spacing:.08em;text-transform:uppercase}
+.st-txt.active{color:var(--green)}.st-txt.standby{color:var(--accent)}.st-txt.quarantined{color:var(--red)}
+.seg{display:inline-flex;border:1px solid var(--border);border-radius:9px;padding:3px;gap:2px;background:var(--bg-inset)}
+.seg button{border:none;height:28px;padding:0 14px;border-radius:6px;font:500 11.5px var(--mono);letter-spacing:.06em;color:var(--text-3);background:none}
+.seg button:hover{background:var(--surface-h);border:none;color:var(--text-2)}
+.seg button.on{background:var(--surface-a);color:var(--text)}
+.seg button.on.s-active{color:var(--green)}.seg button.on.s-standby{color:var(--accent)}.seg button.on.s-quarantined{color:var(--red)}
+.skel{border-radius:8px;background:linear-gradient(90deg,var(--surface) 25%,var(--surface-h) 50%,var(--surface) 75%);
+  background-size:200% 100%;animation:shm 1.3s infinite;height:16px;margin:10px 12px}
+@keyframes shm{to{background-position:-200% 0}}
+.stamp{position:absolute;right:18px;top:16px;transform:rotate(-7deg);border:1px solid rgba(255,69,58,.65);color:var(--red);
+  padding:4px 12px;letter-spacing:.24em;font:700 11px var(--mono);border-radius:4px;animation:stin .32s var(--ease)}
+@keyframes stin{from{transform:rotate(-7deg) scale(1.9);opacity:0}}
+.tl{display:flex;gap:7px;flex-wrap:wrap;min-height:30px;margin-top:10px}
+.tl span{border:1px solid var(--border);padding:3px 10px;border-radius:6px;font:400 11px var(--mono);
+  animation:tin .22s var(--ease);color:var(--text-2)}
+.tl span.ok{color:var(--green);border-color:rgba(47,214,113,.3)}
+.tl span.bad{color:var(--red);border-color:rgba(255,69,58,.3)}
+.logtbl td{font-family:var(--mono);font-size:12px}
+@keyframes rowin{from{opacity:0;transform:translateY(-5px)}}
 
-  .unit-head { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin: 8px 0 0; }
-  .unit-head h2 { margin: 0; font-size: 22px; font-weight: 500; color: #fff; }
-  .unit-head p { margin: 0; color: var(--muted); font-size: 12px; }
-  .unit-actions { display: flex; gap: 10px; margin-left: auto; flex-wrap: wrap; }
-  .unit-actions button {
-    padding: 7px 14px; border-radius: 999px; font-size: 12px; border: 1px solid var(--line); color: var(--muted);
-  }
-  .unit-actions button.a-green { border-color: rgba(92,255,157,.5); color: var(--green); }
-  .unit-actions button.a-blue { border-color: rgba(79,139,255,.5); color: #9fc3ff; }
-  .unit-actions button.a-red { border-color: rgba(255,59,78,.55); color: var(--red); }
-  .unit-actions button:hover { background: rgba(255,255,255,.05); }
+/* ================= KPI strip ================= */
+#kpi{display:flex;align-items:flex-end;gap:0;border:1px solid var(--border);border-radius:12px;background:var(--surface);
+  padding:18px 8px;margin-bottom:16px;overflow:hidden}
+.kpi{flex:1;padding:0 20px;border-left:1px solid var(--border);min-width:0}
+.kpi:first-child{border-left:none;flex:1.7}
+.kpi .v{font:700 15px var(--mono);font-variant-numeric:tabular-nums;letter-spacing:-.02em;margin-top:6px;display:flex;align-items:baseline;gap:8px}
+.kpi:first-child .v{font-size:44px;font-weight:700;letter-spacing:-.03em;line-height:1}
+.kpi .u{font:400 11px var(--font);color:var(--text-3);letter-spacing:0}
+.kpi.hero .v{color:var(--text)}
+.kpi .spark{display:flex;gap:2px;align-items:flex-end;height:16px;margin-top:7px}
+.kpi .spark i{width:3px;border-radius:1px;background:var(--surface-a)}
+.kpi .spark i.on{background:var(--accent)}
 
-  .composer { display: none; margin: 26px auto 0; max-width: 480px; }
-  .composer.open { display: block; }
-  .composer input { width: 100%; padding: 11px 14px; background: #03060a; border: 1px solid rgba(92,255,157,.45); border-radius: 999px; color: var(--ink); }
-  .toast { margin-top: 10px; font-size: 12px; color: var(--green); min-height: 18px; text-align: left; }
-  .toast.b { color: var(--blue); }
-  .toast.r { color: var(--red); }
-  .note { margin-top: 20px; font-size: 12px; color: var(--muted); text-align: center; }
+/* ================= globe ================= */
+.top2{display:grid;grid-template-columns:1.5fr 1fr;gap:16px;margin-bottom:16px}
+@media(max-width:1060px){.top2{grid-template-columns:1fr}}
+.gp{height:min(56vh,470px);min-height:320px;overflow:hidden;border-radius:12px}
+.gp canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none}
+#globe{cursor:grab}
+#globe.drag{cursor:grabbing}
+#ov{pointer-events:none}
+.gp .vig{position:absolute;inset:0;pointer-events:none;border-radius:12px;
+  background:radial-gradient(120% 100% at 50% 50%,transparent 55%,rgba(0,0,0,.45) 100%)}
+.glabels{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.glab{position:absolute;transform:translate(-50%,-50%);font:400 10.5px var(--mono);color:var(--text-2);
+  white-space:nowrap;transition:opacity .18s;display:flex;align-items:center;gap:6px}
+.glab i{width:6px;height:6px;border-radius:50%;flex:none}
+.hint{position:absolute;bottom:10px;left:0;right:0;text-align:center;margin:0;color:var(--text-3);
+  font:400 10.5px var(--mono);pointer-events:none;letter-spacing:.08em}
 
-  /* ---------- audit log ---------- */
-  .audit { max-width: 900px; margin: 34px auto 0; border-top: 1px solid var(--line); padding-top: 16px; }
-  .audit h3 { margin: 0 0 10px; font-size: 12px; letter-spacing: .1em; color: var(--muted); font-weight: 500; }
-  .log-line {
-    display: grid; grid-template-columns: 74px 170px 84px 1fr; gap: 10px;
-    padding: 4px 0; border-bottom: 1px dashed rgba(160,200,255,.08); font-size: 12.5px;
-  }
-  .log-line .t { color: var(--muted); }
-  .log-line .s { text-align: right; }
-  .ok { color: var(--green); } .rej { color: var(--red); } .neutral { color: var(--muted); }
+/* ================= palette ================= */
+#pal{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.55);backdrop-filter:blur(4px);display:flex;justify-content:center;padding-top:14vh}
+#pal[hidden]{display:none}
+.palbox{width:min(520px,92vw);height:fit-content;background:var(--bg-elev);border:1px solid var(--border-h);border-radius:14px;
+  box-shadow:0 30px 90px rgba(0,0,0,.7);overflow:hidden;animation:palin .18s var(--ease)}
+@keyframes palin{from{opacity:0;transform:translateY(-8px) scale(.985)}}
+.palbox input{border:none;border-radius:0;height:50px;background:transparent;font-size:15px;padding:0 18px;box-shadow:none!important;border-bottom:1px solid var(--border)}
+#palres{max-height:320px;overflow:auto;padding:6px}
+.palitem{display:flex;align-items:center;gap:11px;padding:9px 12px;border-radius:8px;cursor:pointer;font-size:13.5px;color:var(--text-2)}
+.palitem .k{margin-left:auto;font:400 10px var(--mono);color:var(--text-3)}
+.palitem.sel{background:var(--surface-a);color:var(--text)}
+.palitem svg{width:14px;height:14px;opacity:.7}
+.palempty{padding:18px;text-align:center;color:var(--text-3);font-size:13px}
 
-  /* ---------- maker console (owner only) ---------- */
-  .console-grid { display: grid; grid-template-columns: 330px 1fr; gap: 22px; align-items: start; }
-  .panel {
-    border: 1px solid var(--line); border-radius: 18px; padding: 18px;
-    background: linear-gradient(180deg, #0b1118 0%, #06090e 100%);
-    margin-bottom: 22px;
-  }
-  .panel h3 { margin: 0 0 12px; font-size: 13px; font-weight: 500; color: #fff; letter-spacing: .04em; }
-  .verdict { font-size: 18px; margin: 4px 0 14px; }
-  .verdict.ok { color: var(--green); }
-  .verdict.near { color: var(--amber); }
-  .verdict.over { color: var(--red); }
-  .verdict-note { font-size: 12px; color: var(--muted); margin: 0 0 14px; }
-  .gauge { margin: 12px 0; }
-  .gauge .row { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); }
-  .gauge .row b { color: var(--ink); font-weight: 500; }
-  .gauge .track { height: 4px; background: rgba(255,255,255,.1); border-radius: 2px; margin-top: 6px; overflow: hidden; }
-  .gauge .track span { display: block; height: 100%; background: var(--green); transition: width .6s ease; }
-  .gauge .track span.warn { background: var(--amber); }
-  .gauge .track span.hot { background: var(--red); }
-  .small { font-size: 12px; color: var(--muted); }
-  .detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin: 10px 0 14px; }
-  .detail-grid div { font-size: 12px; color: var(--muted); }
-  .detail-grid b { display: block; font-size: 18px; color: #fff; font-weight: 400; }
-  .draft {
-    width: 100%; min-height: 90px; background: #03060a; border: 1px solid var(--line); border-radius: 12px;
-    color: var(--ink); padding: 10px; font-size: 12px; resize: vertical;
-  }
-  .btn {
-    margin-top: 10px; padding: 9px 14px; border-radius: 999px; font-size: 12px;
-    border: 1px solid var(--line); color: var(--muted); cursor: not-allowed;
-  }
-  .btn.real { cursor: pointer; border-color: rgba(255,59,78,.5); color: var(--red); }
-  .btn.real:hover { background: rgba(255,59,78,.08); }
-  .rule-list { list-style: none; padding: 0; margin: 0; font-size: 12px; }
-  .rule-list li { padding: 7px 0; border-top: 1px solid var(--line); display: flex; justify-content: space-between; gap: 10px; }
-  .rule-list li span:last-child { color: var(--muted); text-align: right; }
-  .units-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px; }
-  .unit-tile {
-    border-radius: 18px; padding: 14px 12px; text-align: center; color: var(--ink);
-    background: linear-gradient(180deg, #0b1118 0%, #06090e 100%); border: 1px solid var(--line);
-  }
-  .unit-tile.selected { border-color: rgba(92,255,157,.55); }
-  .unit-tile canvas { width: 100px; height: 100px; display: block; margin: 4px auto 8px; cursor: pointer; }
-  .unit-tile .uname { font-size: 12px; word-break: break-all; }
-  .unit-tile .umeta { font-size: 11px; color: var(--muted); margin-top: 4px; }
-  .unit-tile .utier { font-size: 11px; margin-top: 6px; }
-  .glow-light canvas { filter: drop-shadow(0 0 8px rgba(79,139,255,.7)); }
-  .glow-normal canvas { filter: drop-shadow(0 0 8px rgba(92,255,157,.7)); }
-  .glow-heavy canvas { filter: drop-shadow(0 0 12px rgba(255,181,71,.8)); }
-  .glow-over canvas { filter: drop-shadow(0 0 14px rgba(255,59,78,.9)); }
-  .flag { border-top: 1px solid var(--line); padding: 10px 0; }
-  .flag-top { display: flex; justify-content: space-between; gap: 10px; font-size: 12px; }
-  .flag-rule { color: var(--red); }
-  .flag-unit { color: var(--ink); text-align: right; }
-  .flag-detail { margin-top: 4px; }
-  .flag-actions { display: flex; flex-wrap: wrap; gap: 8px; }
-  .flag-actions .btn { margin-top: 6px; }
+/* ================= boot / wizard ================= */
+#boot{position:fixed;inset:0;background:var(--bg);z-index:110;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;transition:opacity .45s var(--ease)}
+#boot.out{opacity:0;pointer-events:none}
+#boot .wm{font-weight:700;letter-spacing:.42em;font-size:15px;padding-left:.42em;animation:win .7s var(--ease)}
+#boot .pbar{width:180px;height:1.5px;background:var(--surface-a);overflow:hidden;border-radius:2px}
+#boot .pbar i{display:block;height:100%;width:0;background:var(--text);animation:pgo .95s var(--ease) forwards}
+@keyframes win{from{opacity:0;letter-spacing:.6em}}
+@keyframes pgo{to{width:100%}}
+#wiz{position:fixed;inset:0;background:rgba(9,9,11,.72);backdrop-filter:blur(8px);z-index:90;display:flex;align-items:center;justify-content:center;padding:18px}
+#wiz[hidden]{display:none}
+.wizbox{width:min(430px,100%);border:1px solid var(--border-h);border-radius:16px;background:var(--bg-elev);padding:28px;
+  box-shadow:0 30px 90px rgba(0,0,0,.6);animation:palin .22s var(--ease)}
+.wizbox h2{font-size:22px;margin-bottom:6px}
+.wizbox p{color:var(--text-2);font-size:13.5px;margin:0 0 18px}
+.wizbox .step{display:none}.wizbox .step.on{display:block}
+.wizbox .pdr{display:flex;gap:5px;margin-bottom:20px}
+.wizbox .pdr i{flex:1;height:2px;border-radius:2px;background:var(--surface-a)}
+.wizbox .pdr i.on{background:var(--accent)}
+.wizbox .err{color:var(--red);font:400 12px var(--mono);min-height:17px}
+.wizbox label{display:flex;gap:11px;align-items:flex-start;border:1px solid var(--border);border-radius:10px;padding:13px;cursor:pointer;font-size:13px;transition:border-color var(--t-fast)}
+.wizbox label:hover{border-color:var(--border-h)}
+.wizbox label input{flex:none;margin-top:3px;accent-color:var(--accent)}
+.wizfin{text-align:center;font-size:15px;padding:6px 0 2px}
 
-  footer { text-align:center; color:#3f4d54; font-size: 11px; padding: 14px; letter-spacing:.06em; }
+footer{padding:18px 28px 34px;text-align:center;color:var(--text-3);font:400 11px var(--mono);letter-spacing:.05em}
 
-  @media (max-width: 860px) {
-    .console-grid { grid-template-columns: 1fr; }
-    .readout { font-size: 11px; }
-    .readout .bar { width: 50px; }
-    .stage { min-height: 440px; }
-    .unit-actions { margin-left: 0; }
-    .log-line { grid-template-columns: 62px 1fr; }
-    .log-line .s, .log-line .d { grid-column: 2; }
-  }
-  @media (prefers-reduced-motion: reduce) {
-    *, *::before, *::after { animation: none !important; transition: none !important; }
-  }
+/* mobile: sidebar → bottom bar */
+@media(max-width:860px){
+  :root{--sb:0px}
+  #sb{top:auto;left:0;right:0;bottom:0;width:100%;height:58px;flex-direction:row;border-right:none;border-top:1px solid var(--border)}
+  #sb .brand,#sbfoot{display:none}
+  #nav{flex-direction:row;padding:6px 8px;gap:2px;justify-content:space-around;width:100%}
+  #nav button{flex:1;flex-direction:column;height:46px;gap:3px;padding:0;font-size:9px;letter-spacing:.04em;justify-content:center}
+  #nav button .nbadge{display:none}
+  #shell{margin-left:0;padding-bottom:64px}
+  main{padding:16px 14px 40px}
+  #kpi{flex-wrap:wrap;padding:14px 6px}
+  .kpi{flex:1 1 40%;border-left:none;padding:8px 14px}
+  .kpi:first-child{flex:1 1 100%}
+  .kpi:first-child .v{font-size:34px}
+  #top{padding:0 14px}
+}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important}
+}
 </style>
 </head>
 <body>
 
-<header>
-  <h1>CONTAINMENT</h1>
-  <div class="status" id="status">server <b>127.0.0.1:8000</b>, checking…</div>
-  <div class="head-right">
-    <div class="key">
-      <span><i style="background:var(--green)"></i>active</span>
-      <span><i style="background:var(--red)"></i>quarantined</span>
-      <span><i style="background:var(--blue)"></i>standby</span>
+<div id="boot"><div class="wm">WATCHER</div><div class="pbar"><i></i></div></div>
+
+<aside id="sb">
+  <div class="brand"><span class="mk"></span><span>WATCHER<em>CONTAINMENT</em></span></div>
+  <nav id="nav" aria-label="console"></nav>
+  <div id="sbfoot"><i id="hdot"></i><span id="htxt">linking…</span></div>
+</aside>
+
+<div id="shell">
+  <header id="top">
+    <button class="pbtn ghost" id="palbtn">search &amp; commands<kbd id="kstk">⌘K</kbd></button>
+    <span class="sp"></span>
+    <div id="stopwrap">
+      <svg class="ring" viewBox="0 0 34 34"><circle cx="17" cy="17" r="14"/></svg>
+      <button class="danger" id="stop" title="hold to confirm">■ stop all</button>
     </div>
-    <button class="console-btn" id="open-console" title="owner only — this server is loopback-only">maker console</button>
-    <button class="console-btn danger" id="stop-all" title="turn every active unit off in one call">stop all</button>
+  </header>
+  <main id="main"></main>
+  <footer>watcher · m1 core · loopback only · every number on this screen is real</footer>
+</div>
+
+<div id="toasts"></div>
+<div id="haz" hidden></div>
+<div id="sweep"></div>
+
+<div id="pal" hidden>
+  <div class="palbox">
+    <input id="palin" placeholder="jump to a unit, a section, an action…" autocomplete="off" spellcheck="false">
+    <div id="palres"></div>
   </div>
-</header>
+</div>
 
-<div class="crumbs" id="crumbs"></div>
-
-<main>
-  <!-- LEVEL 1: the draggable globe -->
-  <section class="view active" id="view-map" aria-label="Sectors">
-    <div class="stage">
-      <canvas id="sphere" aria-label="Containment globe. Drag to turn it. Tap a sector point to open it."></canvas>
-      <div class="readout left" id="ro-left"></div>
-      <div class="readout right" id="ro-right"></div>
-      <p class="hint">drag to turn. tap a point to open a sector.</p>
-      <div class="map-empty" id="map-empty"></div>
-      <nav class="sr-only" id="sr-nav" aria-label="Sectors"></nav>
+<div id="wiz" hidden>
+  <div class="wizbox">
+    <div class="pdr" id="wizpd"><i class="on"></i><i></i><i></i></div>
+    <div class="step on" data-s="0">
+      <h2>Name your unit</h2>
+      <p>A unit is one of your agents — something that acts for you. Pick a name you'll recognize.</p>
+      <div class="bar"><input id="wname" maxlength="100" placeholder="e.g. invoice-bot" autocomplete="off"></div>
+      <div class="err" id="werr"></div>
+      <div class="bar" style="justify-content:flex-end;margin-top:10px"><button class="primary" id="w1">continue</button></div>
     </div>
-
-    <div class="register">
-      <div class="panel">
-        <div class="row">
-          <input id="r-name" maxlength="100" placeholder="register: name" aria-label="Agent name">
-          <input id="r-purpose" maxlength="2000" placeholder="purpose (becomes a sector on the globe)" aria-label="Purpose">
-          <input id="r-tools" maxlength="500" placeholder="tools, comma separated (empty = none)" aria-label="Allowed tools">
-          <button class="go" id="r-submit">REGISTER</button>
-        </div>
-        <div class="hint-line">starts on standby — open its unit and activate it. empty tools = no tools, by design.</div>
-        <div class="toast-r" id="r-toast"></div>
-      </div>
+    <div class="step" data-s="1">
+      <h2>What is it for?</h2>
+      <p>One plain sentence. You'll see this wherever the unit appears.</p>
+      <div class="bar"><input id="wpurp" maxlength="2000" placeholder="e.g. routes customer orders" autocomplete="off"></div>
+      <div class="bar" style="justify-content:space-between;margin-top:12px"><button class="ghost" data-wback="1">back</button><button class="primary" id="w2">continue</button></div>
     </div>
-  </section>
-
-  <!-- LEVEL 2: unit cards in a sector -->
-  <section class="view" id="view-cards" aria-label="Units in this sector">
-    <div class="cards" id="cards"></div>
-  </section>
-
-  <!-- LEVEL 3: one unit, three state cards -->
-  <section class="view" id="view-unit" aria-label="Unit">
-    <div class="unit-head">
-      <h2 id="unit-name"></h2>
-      <p id="unit-role"></p>
-      <div class="unit-actions">
-        <button id="act-toggle">DEACTIVATE</button>
-        <button id="act-quar">QUARANTINE</button>
-      </div>
+    <div class="step" data-s="2">
+      <h2>Give it one job</h2>
+      <p>The echo tool lets a unit reply to a test job — the only tool in this version. Uncheck it and the unit stays silent (the safer default).</p>
+      <label><input type="checkbox" id="wecho" checked><span><b>echo</b><br><span class="mut">reply to jobs — good for first tests</span></span></label>
+      <div class="bar" style="justify-content:space-between;margin-top:16px"><button class="ghost" data-wback="1">back</button><button class="primary" id="w3">put it on the grid</button></div>
     </div>
-    <div class="cards" id="unit-cards"></div>
-    <div class="composer" id="composer">
-      <input id="order-input" maxlength="4000" placeholder="describe the order" aria-label="Order description">
-      <div class="toast" id="toast"></div>
+    <div class="step" data-s="3">
+      <div class="wizfin g">✓ registered</div>
+      <h2 style="text-align:center;font-size:19px">It's on the grid</h2>
+      <p style="text-align:center">Standing by — nothing runs until you switch it on. That's the safety default.</p>
+      <div class="bar" style="justify-content:center"><button class="primary" id="w4">open the console</button></div>
     </div>
-    <p class="note" id="unit-note">live: orders are sent to 127.0.0.1:8000 and the server enforces every gate itself.</p>
+  </div>
+</div>
 
-    <div class="audit">
-      <h3>AUDIT LOG — every step, every refusal, newest first</h3>
-      <div id="logs"><span class="neutral">no events yet</span></div>
-    </div>
-  </section>
-  <!-- OWNER ONLY: maker console -->
-  <section class="view" id="view-console" aria-label="Maker console">
-    <p class="small" style="max-width:900px;margin:6px auto 16px;text-align:center">
-      owner view — reachable only from this computer (server binds 127.0.0.1, never the network).
-      every number below is computed from /agents and /logs. nothing is sampled, nothing is sent.
-    </p>
-    <div class="console-grid">
-      <div>
-        <div class="panel">
-          <h3>server facts</h3>
-          <div class="detail-grid" id="cf-facts"></div>
-          <p class="small" id="cf-health"></p>
-        </div>
+<script type="module">
+import * as THREE from "./vendor/three.module.js";
 
-        <div class="panel">
-          <h3>can it handle the load?</h3>
-          <div class="verdict" id="verdict"></div>
-          <p class="verdict-note" id="verdict-note"></p>
-          <div class="gauge"><div class="row">orders/min, all units <b id="g-tpm"></b></div><div class="track"><span id="t-tpm"></span></div></div>
-          <div class="gauge"><div class="row">refusals logged <b id="g-ref"></b></div><div class="track"><span id="t-ref"></span></div></div>
-          <div class="gauge"><div class="row">units active <b id="g-act"></b></div><div class="track"><span id="t-act"></span></div></div>
-          <p class="small">thresholds: over 90 orders/min or over 90% capacity = over. these are starting guesses until a week of real usage measures them.</p>
-        </div>
+/* ================= helpers ================= */
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const REDUCE = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const PV = '<i class="pv">PREVIEW</i>';
+const C = { active:"#2fd671", standby:"#4f7cff", quarantined:"#ff453a" };
+const st = a => a.quarantined ? "quarantined" : a.is_active ? "active" : "standby";
+const stL = { active:"on duty", standby:"standby", quarantined:"locked away" };
 
-        <div class="panel">
-          <h3>alert rules</h3>
-          <ul class="rule-list">
-            <li><span>light</span><span>under 5 orders/min</span></li>
-            <li><span>normal</span><span>5 to 19 orders/min</span></li>
-            <li><span>heavy</span><span>20 to 49 orders/min, draft alert</span></li>
-            <li><span>over</span><span>50+ orders/min, draft alert</span></li>
-            <li><span>flag</span><span>3+ refusals in one unit</span></li>
-          </ul>
-        </div>
-      </div>
+async function jget(p){ const r = await fetch(p); if(!r.ok) throw new Error(r.status); return r.json(); }
+async function jpost(p, body){
+  const r = await fetch(p, { method:"POST", headers:{"Content-Type":"application/json"}, body: body!==undefined?JSON.stringify(body):undefined });
+  let d = null; try{ d = await r.json(); }catch(_){}
+  if(!r.ok){ const e = new Error(r.status); e.status = r.status; e.detail = d && d.detail; throw e; }
+  return d;
+}
 
-      <div>
-        <div class="panel">
-          <h3>units by load — tap a globe for detail</h3>
-          <div class="units-grid" id="cf-units"></div>
-        </div>
+/* icons (inline, no external) */
+const IC = {
+  units:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="2" y="2" width="5" height="5" rx="1.2"/><rect x="9" y="2" width="5" height="5" rx="1.2"/><rect x="2" y="9" width="5" height="5" rx="1.2"/><rect x="9" y="9" width="5" height="5" rx="1.2"/></svg>',
+  maker:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="8" cy="8" r="2.2"/><path d="M8 1.8v2M8 12.2v2M1.8 8h2M12.2 8h2M3.6 3.6l1.4 1.4M11 11l1.4 1.4M12.4 3.6L11 5M5 11l-1.4 1.4"/></svg>',
+  ops:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="5.5" cy="5.5" r="2.2"/><circle cx="11" cy="6.5" r="1.7"/><path d="M1.8 13c.4-2.2 2-3.4 3.7-3.4S8.8 10.8 9.2 13M10.5 10c1.5.1 2.9 1 3.4 2.6"/></svg>',
+  alerts:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 2a4 4 0 0 0-4 4v2.5L2.8 11h10.4L12 8.5V6a4 4 0 0 0-4-4zM6.7 13a1.4 1.4 0 0 0 2.6 0"/></svg>',
+  passport:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="2.5" y="3" width="11" height="10" rx="1.5"/><circle cx="6.2" cy="7.4" r="1.5"/><path d="M9.5 6.4h2.4M9.5 8.4h2.4M4.5 11.2c.4-1.1 1.2-1.6 1.9-1.6s1.5.5 1.9 1.6"/></svg>',
+  sentinel:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 1.8l5 1.8v4c0 3.1-2 5.4-5 6.6-3-1.2-5-3.5-5-6.6v-4z"/><path d="M5.8 8l1.6 1.6L10.4 6.6"/></svg>',
+  vault:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="2.5" y="6.5" width="11" height="7" rx="1.4"/><path d="M5 6.5V5a3 3 0 0 1 6 0v1.5"/><circle cx="8" cy="10" r="1"/></svg>',
+};
 
-        <div class="panel" id="detail-panel">
-          <h3 id="cf-detail-title">select a unit</h3>
-          <div class="detail-grid" id="cf-detail"></div>
-          <p class="small" id="cf-detail-note"></p>
-        </div>
+/* ================= state ================= */
+let AGENTS = [];
+let view = "units", cur = null, sel = null, filter = "all";
+let healthOK = false, wstep = 0, wizOff = false;
+let eventsCache = null;
 
-        <div class="panel">
-          <h3>security flags (from real logs)</h3>
-          <div id="cf-flags"></div>
-          <p class="small">flags are derived only from this server's own audit trail: refusals and quarantines. task text is never read by rules. a flag never blocks anything by itself — you approve every action.</p>
-        </div>
+const NAV = [["units","Units"],["maker","Maker"],["ops","Ops deck"],["alerts","Alerts"],["passport","Passport"],["sentinel","Sentinel"],["vault","Proof vault"]];
+const LEG = {
+  states:[["on duty","#2fd671"],["standby","#4f7cff"],["locked away","#ff453a"]],
+  trust:[["verified","#2fd671"],["unverified","#63636b"],["revoked","#f5a623"]],
+  threats:[["clean","#2fd671"],["reported","#f5a623"],["flagged","#ff453a"]],
+};
+const LAB = { states:"states", trust:"trust", threats:"threats" };
+let layer = "states";
 
-        <div class="panel">
-          <h3>alert drafts (not sent)</h3>
-          <div id="cf-drafts"></div>
-          <button class="btn" type="button" disabled>send alerts — needs an alert channel and your approval</button>
-        </div>
-      </div>
-    </div>
-  </section>
-</main>
+/* ================= boot ================= */
+setTimeout(()=>{ const b=$("#boot"); if(b){ b.classList.add("out"); setTimeout(()=>b.remove(), 500); } }, REDUCE ? 120 : 1000);
+$("#boot").addEventListener("click", ()=>{ const b=$("#boot"); if(b){ b.classList.add("out"); setTimeout(()=>b.remove(), 400); } }, { once:true });
 
-<footer>ALL VALUES LIVE FROM /agents · /health · /logs — NO MOCK DATA</footer>
+/* ================= toasts / hazards ================= */
+function toast(msg, kind){
+  const t = document.createElement("div");
+  t.className = "toast " + (kind||"");
+  t.innerHTML = '<i></i><span>'+msg+'</span>';
+  $("#toasts").append(t);
+  setTimeout(()=>{ t.classList.add("out"); setTimeout(()=>t.remove(), 220); }, 4200);
+  while($("#toasts").children.length > 4) $("#toasts").firstChild.remove();
+}
+function hazard(msg){
+  const h = $("#haz");
+  h.hidden = false; h.textContent = msg;
+  h.classList.remove("hide"); void h.offsetWidth; h.classList.add("show");
+  setTimeout(()=>{ h.classList.add("hide"); setTimeout(()=>{ h.hidden = true; h.classList.remove("show","hide"); }, 340); }, 2600);
+}
+function sweep(){ if(REDUCE) return; const s=$("#sweep"); s.classList.remove("go"); void s.offsetWidth; s.classList.add("go"); }
+function glitch(){ if(REDUCE) return; const m=$("#main"); m.style.animation="none"; void m.offsetWidth;
+  m.style.animation="gl .4s"; setTimeout(()=>m.style.animation="", 420); }
+const glStyle = document.createElement("style");
+glStyle.textContent = "@keyframes gl{20%{transform:translate(-3px,1px)}40%{transform:translate(3px,-1px)}60%{transform:translate(-1px,2px)}}";
+document.head.append(glStyle);
 
-<script>
-(() => {
-  const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const $ = id => document.getElementById(id);
-  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
-
-  const esc = s => String(s).replace(/[&<>"']/g,
-    c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-
-  /* ---- API helper: same-origin relative paths ONLY ---- */
-  async function api(path, opts = {}) {
-    const res = await fetch(path, { headers: { "Content-Type": "application/json" }, ...opts });
-    let body = null;
-    try { body = await res.json(); } catch (e) { /* empty */ }
-    if (!res.ok) {
-      const d = body && body.detail;
-      const msg = typeof d === "string" ? d : (d && (d.message || d.task_id)) || res.statusText || "request failed";
-      const err = new Error(msg);
-      err.status = res.status; err.detail = d;
-      throw err;
+/* ================= data ================= */
+async function loadHealth(){
+  try{ await jget("/health"); healthOK = true; }catch(_){ healthOK = false; }
+  renderSbFoot();
+}
+async function loadEvents(){
+  try{
+    const counts = await Promise.all(AGENTS.map(async a=>{
+      try{ const logs = await jget("/agents/"+a.id+"/logs"); return logs.length; }catch(_){ return 0; }
+    }));
+    eventsCache = counts.reduce((x,y)=>x+y,0);
+  }catch(_){ eventsCache = eventsCache ?? 0; }
+}
+async function loadAgents(silent){
+  try{
+    AGENTS = await jget("/agents");
+    await loadEvents();
+    if(silent && view==="units" && !cur){
+      renderNav();
+      const k = document.getElementById("kpi"); if(k) k.outerHTML = kpiStrip();
+      const sp = document.getElementById("sidepanel"); if(sp) sp.outerHTML = sidePanel();
+      const ul = document.getElementById("unitslist"); if(ul) ul.outerHTML = unitsList();
+      globeRefresh();
+    }else{
+      renderAll();
     }
-    return body;
+    if(AGENTS.length===0 && !wizOff) openWizard();
+  }catch(_){ healthOK = false; renderSbFoot(); }
+}
+const byId = id => AGENTS.find(a=>a.id===id);
+function counts(){
+  const c = { active:0, standby:0, quarantined:0 };
+  AGENTS.forEach(a=>c[st(a)]++);
+  return c;
+}
+function renderSbFoot(){
+  $("#hdot").className = healthOK ? "ok" : "err";
+  $("#htxt").textContent = healthOK ? "loopback · db ok" : "server unreachable";
+}
+
+/* ================= actions ================= */
+async function act(id, action){
+  const map = { on:"activate", off:"deactivate", q:"quarantine", rel:"unquarantine" };
+  try{
+    const a = await jpost("/agents/"+id+"/"+map[action]);
+    const i = AGENTS.findIndex(x=>x.id===id);
+    if(i>=0) AGENTS[i] = a;
+    if(action==="q") toast("<b>"+esc(a.name)+"</b> locked away — all jobs now refused", "danger");
+    else if(action==="rel") toast("<b>"+esc(a.name)+"</b> released from lock", "ok");
+    else if(action==="on") toast("<b>"+esc(a.name)+"</b> is on duty", "ok");
+    else toast("<b>"+esc(a.name)+"</b> switched off", "");
+    renderAll();
+  }catch(e){ toast("action failed ("+e.status+")", "danger"); glitch(); }
+}
+async function stopAll(){
+  try{
+    const r = await jpost("/agents/deactivate-all");
+    sweep();
+    hazard("LOCKDOWN · "+r.deactivated+(r.deactivated===1?" unit":" units")+" switched off");
+    await loadAgents(true);
+  }catch(e){ toast("lockdown failed ("+e.status+")", "danger"); }
+}
+async function submitJob(id, text){
+  const tl = $("#tl"); if(!tl) return;
+  tl.innerHTML = '<span class="mut">sending…</span>';
+  let result = null, err = null;
+  try{ result = await jpost("/agents/"+id+"/tasks", { task_text:text }); }
+  catch(e){ err = e; }
+  let rows = [];
+  try{
+    const logs = await jget("/agents/"+id+"/logs");
+    const tid = result ? result.task_id : (err && err.detail && err.detail.task_id);
+    rows = tid ? logs.filter(r=>r.task_id===tid) : logs.slice(-4);
+  }catch(_){}
+  const chips = [];
+  if(result){
+    chips.push(["task "+result.task_id.slice(0,8), ""]);
+    rows.forEach(r=>chips.push([r.step+" · "+r.status, r.status==="ok"?"ok":"bad"]));
+    if(result.output) chips.push([result.output.slice(0,70), result.status==="completed"?"ok":"bad"]);
+  }else if(err){
+    const msg = err.detail && err.detail.message ? err.detail.message : ("job failed ("+err.status+")");
+    chips.push(["refused · "+msg, "bad"]);
+    if(err.detail && err.detail.task_id) chips.push(["logged as task "+err.detail.task_id.slice(0,8)+" — see audit", ""]);
+    glitch();
   }
+  tl.innerHTML = "";
+  chips.forEach((c,i)=>setTimeout(()=>{
+    const s = document.createElement("span");
+    s.className = c[1]; s.textContent = c[0]; tl.append(s);
+  }, REDUCE ? 0 : i*300));
+  loadEvents();
+  fillAudit(id);
+}
+async function registerAgent(name, purpose, tools){
+  return jpost("/agents", { name, purpose:purpose||"", description:"", allowed_tools:tools });
+}
 
-  /* ---- real state from real fields ---- */
-  const stateOf = a => a.quarantined ? "quarantined" : a.is_active ? "active" : "standby";
-  const stateColor = s => s === "active" ? "#5cff9d" : s === "quarantined" ? "#ff3b4e" : "#4f8bff";
+/* ================= wizard ================= */
+function openWizard(){ wstep = 0; wizOff = false; showWiz(); }
+function showWiz(){
+  $("#wiz").hidden = false;
+  document.querySelectorAll(".wizbox .step").forEach(el=>el.classList.toggle("on", +el.dataset.s===wstep));
+  document.querySelectorAll("#wizpd i").forEach((el,i)=>el.classList.toggle("on", i<=Math.min(wstep,2)));
+  const f = {0:"#wname",1:"#wpurp",2:"#wecho",3:"#w4"}[wstep];
+  setTimeout(()=>{ const el=$(f); if(el&&el.focus) el.focus(); }, 80);
+}
+function closeWiz(){ wizOff = true; $("#wiz").hidden = true; }
+$("#w1").onclick = ()=>{ if(!$("#wname").value.trim()){ $("#werr").textContent = "give it a name first"; return; } $("#werr").textContent=""; wstep=1; showWiz(); };
+$("#w2").onclick = ()=>{ wstep = 2; showWiz(); };
+$("#w3").onclick = async ()=>{
+  try{
+    const a = await registerAgent($("#wname").value.trim(), $("#wpurp").value.trim(), $("#wecho").checked?["echo"]:[]);
+    AGENTS.push(a); await loadEvents(); wstep = 3; showWiz(); renderAll();
+  }catch(e){ $("#werr").textContent = e.status===409 ? "that name is already on the grid" : "could not register ("+e.status+")"; }
+};
+$("#w4").onclick = ()=>{ closeWiz(); cur = sel = null; view = "units"; renderAll(); toast("unit registered · standby by default", "ok"); };
+document.querySelectorAll("[data-wback]").forEach(b=>b.onclick = ()=>{ wstep = Math.max(0, wstep-1); showWiz(); });
+$("#wiz").addEventListener("click", e=>{ if(e.target.id==="wiz") closeWiz(); });
 
-  let agents = [];            // live /agents
-  let statsCache = new Map(); // agent id -> {tasks, rate, refusals, last}
-
-  async function statsFor(id) {
-    if (statsCache.has(id)) return statsCache.get(id);
-    const rows = await api(`/agents/${id}/logs`).catch(() => []);
-    const tasks = new Map(); // task_id -> {at, bad}
-    rows.forEach(r => {
-      if (!tasks.has(r.task_id)) tasks.set(r.task_id, { at: r.created_at, bad: false });
-      if (r.status === "rejected") tasks.get(r.task_id).bad = true;
-    });
-    let refused = 0, recent = 0;
-    const cutoff = Date.now() - 5 * 60 * 1000;
-    tasks.forEach(v => {
-      if (v.bad) refused++;
-      if (Date.parse(v.at) >= cutoff) recent++;
-    });
-    const total = tasks.size;
-    const s = {
-      tasks: total,
-      rate: total ? Math.round(((total - refused) / total) * 100) : 0,
-      refusals: refused,
-      tpm: Math.round(recent / 5),   // real orders per minute, last 5 min window
-      last: rows.length ? rows[rows.length - 1] : null
-    };
-    statsCache.set(id, s);
-    return s;
+/* ================= hold-to-stop ================= */
+(function(){
+  const wrap = $("#stopwrap"), btn = $("#stop"), circle = wrap.querySelector("circle");
+  const CIRC = 88; let raf = null, t0 = 0;
+  const HOLD = 750;
+  function tick(now){
+    if(!t0) t0 = now;
+    const p = Math.min(1, (now - t0)/HOLD);
+    circle.style.strokeDashoffset = String(CIRC * (1 - p));
+    if(p >= 1){ cancel(); stopAll(); return; }
+    raf = requestAnimationFrame(tick);
   }
-  const bustStats = id => statsCache.delete(id);
+  function start(e){ if(e.button && e.button!==0) return; if(REDUCE){ stopAll(); return; }
+    wrap.classList.add("holding"); t0 = 0; raf = requestAnimationFrame(tick); }
+  function cancel(){ if(raf) cancelAnimationFrame(raf); raf = null; t0 = 0;
+    wrap.classList.remove("holding"); circle.style.strokeDashoffset = String(CIRC); }
+  btn.addEventListener("pointerdown", start);
+  btn.addEventListener("pointerup", cancel);
+  btn.addEventListener("pointerleave", cancel);
+  btn.addEventListener("pointercancel", cancel);
+})();
 
-  /* ---- sectors: purposes from real agents, stable positions ---- */
-  function latlon(name) {
-    let h = 2166136261;
-    for (let i = 0; i < name.length; i++) { h ^= name.charCodeAt(i); h = Math.imul(h, 16777619); }
-    h = h >>> 0;
-    const lat = (h % 120) - 60;
-    const lon = ((h >>> 9) % 340) - 170;
-    return { lat, lon };
+/* ================= command palette ================= */
+let palItems = [], palSel = 0;
+function buildPal(){
+  const items = [];
+  const secIcon = { units:"units", maker:"maker", ops:"ops", alerts:"alerts", passport:"passport", sentinel:"sentinel", vault:"vault" };
+  NAV.forEach(([k,n])=>items.push({ label:n, icon:secIcon[k], run:()=>{ view=k; cur=null; renderAll(); } }));
+  AGENTS.forEach(a=>items.push({ label:a.name, meta:stL[st(a)], icon:"units", run:()=>{ view="units"; cur=a.id; sel=a.id; renderAll(); } }));
+  items.push({ label:"Register a new unit", icon:"units", run:()=>openWizard() });
+  items.push({ label:"Stop all units (hold in header)", icon:"alerts", run:()=>toast("use the hold-button, top right","warn") });
+  return items;
+}
+function openPal(){
+  palItems = buildPal(); palSel = 0;
+  $("#pal").hidden = false; $("#palin").value = ""; renderPal("");
+  setTimeout(()=>$("#palin").focus(), 40);
+}
+function closePal(){ $("#pal").hidden = true; }
+function renderPal(q){
+  const f = palItems.filter(i=>i.label.toLowerCase().includes(q.toLowerCase()));
+  palItems._f = f;
+  $("#palres").innerHTML = f.length ? f.map((it,i)=>
+    '<div class="palitem'+(i===palSel?" sel":"")+'" data-i="'+i+'">'+(IC[it.icon]||IC.units)+
+    '<span>'+esc(it.label)+'</span>'+(it.meta?'<span class="k">'+esc(it.meta)+'</span>':'')+'</div>').join("")
+    : '<div class="palempty">nothing matches</div>';
+}
+$("#palbtn").onclick = openPal;
+$("#palin").addEventListener("input", e=>{ palSel = 0; renderPal(e.target.value); });
+$("#palres").addEventListener("click", e=>{
+  const it = e.target.closest(".palitem"); if(!it) return;
+  const f = palItems._f || []; const item = f[+it.dataset.i];
+  if(item){ closePal(); item.run(); }
+});
+$("#pal").addEventListener("click", e=>{ if(e.target.id==="pal") closePal(); });
+document.addEventListener("keydown", e=>{
+  if((e.metaKey||e.ctrlKey) && e.key.toLowerCase()==="k"){ e.preventDefault(); $("#pal").hidden ? openPal() : closePal(); return; }
+  if(e.key==="Escape"){ if(!$("#pal").hidden) closePal(); else if(!$("#wiz").hidden) closeWiz(); }
+  if(!$("#pal").hidden){
+    const f = palItems._f || [];
+    if(e.key==="ArrowDown"){ e.preventDefault(); palSel = Math.min(f.length-1, palSel+1); renderPal($("#palin").value); }
+    if(e.key==="ArrowUp"){ e.preventDefault(); palSel = Math.max(0, palSel-1); renderPal($("#palin").value); }
+    if(e.key==="Enter" && f[palSel]){ e.preventDefault(); closePal(); f[palSel].run(); }
   }
+  if(e.key==="Enter" && e.target.id==="oi"){ e.preventDefault(); $("#os").click(); }
+  if(e.key==="Enter" && e.target.id==="si"){ e.preventDefault(); $("#sc").click(); }
+});
+if(!/Mac|iPhone|iPad/.test(navigator.platform||"")) $("#kstk").textContent = "Ctrl K";
 
-  const deg = d => d * Math.PI / 180;
+/* ================= views ================= */
+function kpiStrip(){
+  const c = counts();
+  return `
+  <div id="kpi">
+    <div class="kpi hero"><div class="lbl">active now</div>
+      <div class="v"><span class="num" id="kpin">${c.active}</span><span class="u">${c.active===1?"unit on duty":"units on duty"}</span></div></div>
+    <div class="kpi"><div class="lbl">standby</div><div class="v num">${c.standby}</div></div>
+    <div class="kpi"><div class="lbl">locked away</div><div class="v num ${c.quarantined?"r":""}">${c.quarantined}</div></div>
+    <div class="kpi"><div class="lbl">audit events</div><div class="v num">${eventsCache ?? 0}</div></div>
+  </div>`;
+}
+function globePanel(){
+  return `
+  <div class="panel gp" id="gp">
+    <canvas id="globe" aria-label="Containment globe. Drag to turn, scroll to zoom, tap a unit to open it."></canvas>
+    <canvas id="ov"></canvas>
+    <div class="glabels" id="glabels"></div>
+    <div class="vig"></div>
+    <p class="hint">drag to turn · scroll to zoom · tap a unit</p>
+  </div>`;
+}
+function sidePanel(){
+  const s = sel ? byId(sel) : null;
+  return `
+  <div class="panel pad" id="sidepanel">
+    <h3>layer</h3>
+    <div class="seg" id="layers" style="margin-bottom:12px">
+      ${Object.keys(LAB).map(k=>`<button data-l="${k}" class="${k===layer?"on":""}">${LAB[k]}${k==="states"?"":PV}</button>`).join("")}
+    </div>
+    <div style="font-size:12.5px;margin-bottom:4px">
+      ${LEG[layer].map(([n,c])=>`<div style="display:flex;gap:8px;align-items:center;padding:3px 0;color:var(--text-2)"><span class="dot" style="background:${c};box-shadow:none;margin-right:0"></span>${n}</div>`).join("")}
+      ${layer==="trust"?'<p class="dim" style="margin:6px 0 0;font-size:12px">no passport data yet · ships m8</p>':layer==="threats"?'<p class="dim" style="margin:6px 0 0;font-size:12px">no reputation data yet · ships m9</p>':""}
+    </div>
+    <h3 style="margin-top:18px">selected</h3>
+    ${s?`<div style="font-size:13.5px"><span class="dot ${st(s)}"></span><b>${esc(s.name)}</b>
+      <div class="dim" style="font-size:12px;margin:4px 0 10px 17px">${stL[st(s)]}${s.purpose?" · "+esc(s.purpose):""}</div>
+      <button data-open="${s.id}" style="width:100%;justify-content:center">open unit</button></div>`
+     :`<p class="dim" style="font-size:13px;margin:0">tap a unit on the globe</p>`}
+  </div>`;
+}
+function unitsList(){
+  const c = counts();
+  const chips = [["all","all",AGENTS.length],["active","on duty",c.active],["standby","standby",c.standby],["quarantined","locked",c.quarantined]];
+  const rows = AGENTS.filter(a=>filter==="all"||st(a)===filter);
+  return `
+  <div class="panel" id="unitslist" style="margin-bottom:16px">
+    <div class="bar" style="margin:0;padding:12px 14px;border-bottom:1px solid var(--border);justify-content:space-between">
+      <div class="seg">${chips.map(([k,n,v])=>`<button data-f="${k}" class="${filter===k?"on":""}">${n} <span class="dim num">${v}</span></button>`).join("")}</div>
+      <button class="primary" id="reg">+ register unit</button>
+    </div>
+    ${AGENTS.length===0?`<div style="padding:34px 24px;text-align:center">
+      <p style="margin:0 0 6px;font-weight:500">no units yet</p>
+      <p class="mut" style="margin:0 0 16px;font-size:13.5px;max-width:420px;margin-inline:auto">a unit is one of your agents — something that acts for you. register one, switch it on when you want it working, lock it away when you don't. nothing runs without you.</p>
+      <button class="primary" id="reg2">register your first unit</button></div>`
+    :rows.length===0?`<div style="padding:26px;text-align:center" class="dim">no units in this filter</div>`
+    :`<table class="tbl"><thead><tr><th>unit</th><th>purpose</th><th>tools</th><th>state</th><th></th></tr></thead><tbody>
+      ${rows.map((u,i)=>`<tr class="click flip" style="--i:${i}" data-open="${u.id}">
+        <td><span class="dot ${st(u)}"></span><b style="font-weight:500">${esc(u.name)}</b> <span class="dim num" style="font-size:11px">#${u.id}</span></td>
+        <td class="mut" style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(u.purpose||"—")}</td>
+        <td class="mono dim">${u.allowed_tools.length?esc(u.allowed_tools.join(", ")):"none"}</td>
+        <td><span class="st-txt ${st(u)}">${stL[st(u)]}</span></td>
+        <td style="text-align:right"><button class="ghost" data-open="${u.id}">open</button></td></tr>`).join("")}
+    </tbody></table>`}
+  </div>`;
+}
+function unitDetail(u){
+  const k = st(u);
+  return `
+  <div class="panel" style="margin-bottom:16px;overflow:hidden">
+    ${u.quarantined?'<div class="stamp">QUARANTINED</div>':""}
+    <div class="bar" style="margin:0;padding:14px 18px;border-bottom:1px solid var(--border)">
+      <button class="ghost" data-back="1">← all units</button>
+      <h2 style="margin-left:6px">${esc(u.name)}</h2>
+      <span class="dim num" style="font-size:12px">#${u.id}</span>
+      ${u.purpose?`<span class="dim" style="font-size:13px">· ${esc(u.purpose)}</span>`:""}
+    </div>
+    <div class="grid2" style="gap:0">
+      <div style="padding:18px;border-right:1px solid var(--border)">
+        <h3>state</h3>
+        <div class="seg" style="margin-bottom:14px;width:100%">
+          ${["active","standby","quarantined"].map(x=>`<button style="flex:1" class="${x===k?"on s-"+x:""}" disabled>${stL[x]}</button>`).join("")}
+        </div>
+        <div class="bar">
+          <button data-a="${u.is_active?"off":"on"}" data-id="${u.id}" class="${u.is_active?"":"primary"}">${u.is_active?"switch off":"switch on"}</button>
+          <button class="${u.quarantined?"":"danger"}" data-a="${u.quarantined?"rel":"q"}" data-id="${u.id}">${u.quarantined?"release lock":"lock away"}</button>
+          <button class="ghost" id="testjob">send test job</button>
+        </div>
+        <h3 style="margin-top:20px">job pad</h3>
+        <div class="bar"><input id="oi" maxlength="4000" placeholder="describe the job, e.g. ping the team" autocomplete="off"><button class="primary" id="os">send</button></div>
+        <div id="tl" class="tl"></div>
+        <p class="dim" style="font-size:12px;margin:8px 0 0">locked or off units refuse the job — the refusal is written to the audit trail.</p>
+      </div>
+      <div style="padding:18px">
+        <h3>mission</h3>
+        <p style="margin:0 0 16px;font-size:13.5px">${esc(u.purpose||"no purpose set")}</p>
+        <h3>tool allowlist</h3>
+        <div class="chips" style="margin-bottom:16px">${u.allowed_tools.length?u.allowed_tools.map(t=>"<span>"+esc(t)+"</span>").join(""):'<span class="dim">no tools — unit stays silent (default)</span>'}</div>
+        <h3>budget &amp; limits ${PV}</h3>
+        <p class="dim" style="margin:0 0 16px;font-size:13px">not set in this version — ships with m2.</p>
+        <h3>audit trail</h3>
+        <div id="auditbox" data-aid="${u.id}"><div class="skel"></div><div class="skel" style="width:70%"></div><div class="skel" style="width:85%"></div></div>
+      </div>
+    </div>
+  </div>`;
+}
+function fillAudit(id){
+  const box = $("#auditbox"); if(!box || +box.dataset.aid !== id) return;
+  jget("/agents/"+id+"/logs").then(rows=>{
+    if(!$("#auditbox") || +$("#auditbox").dataset.aid !== id) return;
+    const rs = rows.slice().reverse().slice(0, 30);
+    $("#auditbox").innerHTML = rs.length ? `
+      <table class="tbl logtbl"><thead><tr><th>time</th><th>step</th><th>status</th><th>detail</th></tr></thead><tbody>
+      ${rs.map(r=>{
+        const t = new Date(r.created_at);
+        const hh = isNaN(t)?"—":t.toTimeString().slice(0,8);
+        return `<tr style="animation:rowin .25s"><td class="dim">${hh}</td><td>${esc(r.step)}</td>
+          <td class="${r.status==="ok"?"g":"r"}">${esc(r.status)}</td>
+          <td class="${r.status==="ok"?"mut":"r"}" style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.detail||"")}</td></tr>`;
+      }).join("")}</tbody></table>`
+      : '<p class="dim" style="font-size:13px;margin:0">no events yet — send a job to watch the trail fill up</p>';
+  }).catch(()=>{});
+}
+function makerView(){
+  const host = location.hostname || "127.0.0.1";
+  const port = location.port ? ":"+location.port : "";
+  return `
+  <div class="grid2">
+    <div class="panel pad"><h3>server facts (live)</h3>
+      <ul class="kv">
+        <li>host<b>${esc(host)}${esc(port)}</b></li>
+        <li>database<b>sqlite</b></li>
+        <li>reach<b>this computer only</b></li>
+        <li>health<b class="${healthOK?"g":"r"}">${healthOK?"ok · connected":"unreachable"}</b></li>
+        <li>units on grid<b>${AGENTS.length}</b></li>
+        <li>audit events<b>${eventsCache ?? 0}</b></li>
+      </ul>
+    </div>
+    <div class="panel pad"><h3>security flags ${PV}</h3>
+      <ul class="kv"><li>repeated failed logins<b class="r">flag</b></li><li>task-rate spike<b class="a">watch</b></li></ul>
+      <p class="dim" style="margin:10px 0 18px;font-size:12.5px">a flag never blocks by itself — you approve every block. ships m5.</p>
+      <h3>units on this grid</h3>
+      ${AGENTS.map(u=>`<div class="bar" style="margin:4px 0"><span style="flex:1;font-size:13.5px"><span class="dot ${st(u)}"></span>${esc(u.name)}</span>
+        <span class="st-txt ${st(u)}">${stL[st(u)]}</span>
+        <button class="${u.quarantined?"ghost":"danger"}" data-a="${u.quarantined?"rel":"q"}" data-id="${u.id}">${u.quarantined?"release":"lock away"}</button></div>`).join("")||'<span class="dim">no units</span>'}
+    </div>
+  </div>`;
+}
+function opsView(){
+  return `<div class="grid2">
+    <div class="panel pad"><h3>accounts &amp; roles ${PV}</h3>
+      <ul class="kv"><li>owner<b>full control</b></li><li>viewer<b>read only</b></li><li>observer<b>operator tab only</b></li></ul>
+      <div class="bar" style="margin-top:14px"><button data-toast="a viewer link is not created in this preview">make viewer link</button></div>
+      <p class="dim" style="margin:10px 0 0;font-size:12.5px">real accounts ship m4 — operator-only, disclosed, never sold.</p>
+    </div>
+    <div class="panel pad"><h3>observer panel ${PV}</h3>
+      <table class="tbl"><tbody>
+      ${AGENTS.map(u=>`<tr><td><span class="dot ${st(u)}"></span>${esc(u.name)}</td>
+        <td class="mut" style="text-align:right;font-size:12px">${stL[st(u)]} · ip ships m4</td></tr>`).join("")||'<tr><td class="dim">no units</td></tr>'}
+      </tbody></table>
+    </div>
+  </div>`;
+}
+function alertsView(){
+  const cards = [["offline","a unit stops answering"],["refusal streak","a unit is refused again and again"],["budget breach","a unit passes its cap"]];
+  return `<div class="grid2">${cards.map(([n,d])=>`<div class="panel pad"><h3>${n} ${PV}</h3>
+    <p class="mut" style="margin:0 0 14px;font-size:13.5px">${d}</p>
+    <button data-fire="${n}">test fire</button></div>`).join("")}</div>
+  <p class="dim" style="font-size:12.5px;margin-top:14px">alerts are drafted, never sent, until you approve them (m5).</p>`;
+}
+function passportView(){
+  return `<div class="grid2">
+    <div class="panel pad"><h3>identity cards ${PV}</h3>
+      <table class="tbl"><tbody>
+      ${AGENTS.map(u=>`<tr><td><span class="dot ${st(u)}"></span>${esc(u.name)}</td>
+        <td class="dim" style="text-align:right;font-size:12px">unverified</td>
+        <td style="text-align:right;white-space:nowrap">
+          <button class="ghost" data-toast="passport issue ships in m8" style="height:26px;font-size:12px">issue</button>
+          <button class="danger" data-toast="passport revoke ships in m8" style="height:26px;font-size:12px">revoke</button></td></tr>`).join("")||'<tr><td class="dim">no units</td></tr>'}
+      </tbody></table>
+      <p class="dim" style="margin:12px 0 0;font-size:12.5px">passports are signed identities agents present at each other's door (m8).</p>
+    </div>
+    <div class="panel pad"><h3>revocation list</h3>
+      <p class="dim" style="margin:0;font-size:13.5px">nothing revoked on this grid</p>
+      <p class="dim" style="margin:10px 0 0;font-size:12.5px">revoked passports appear here and on the trust globe layer.</p>
+    </div>
+  </div>`;
+}
+function sentinelView(){
+  return `
+  <div class="panel pad" style="margin-bottom:16px"><h3>reputation check ${PV}</h3>
+    <div class="bar"><input id="si" placeholder="paste any agent id, e.g. spam-bot-13" autocomplete="off"><button class="primary" id="sc">check</button></div>
+    <div id="sr"></div>
+    <p class="dim" style="margin:8px 0 0;font-size:12px">sample reputation data · the real network ships m9.</p>
+  </div>
+  <div class="grid2">
+    <div class="panel pad"><h3>report feed ${PV}</h3>
+      <table class="tbl"><tbody><tr><td class="mono">spam-bot-13</td><td class="r st-txt" style="text-align:right">flagged</td></tr>
+      <tr><td class="mono">promo-bot-2</td><td class="a st-txt" style="text-align:right">reported</td></tr></tbody></table>
+    </div>
+    <div class="panel pad"><h3>appeals queue ${PV}</h3>
+      <table class="tbl"><tbody><tr><td class="mono">faq-bot</td><td class="a st-txt" style="text-align:right">waiting</td></tr></tbody></table>
+      <p class="dim" style="margin:10px 0 0;font-size:12.5px">every flag has a human appeal path — due process is the product.</p>
+    </div>
+  </div>`;
+}
+async function vaultView(){
+  let rows = AGENTS.map(u=>[u,0]);
+  try{
+    rows = await Promise.all(AGENTS.map(async u=>{
+      try{ const logs = await jget("/agents/"+u.id+"/logs"); return [u, logs.length]; }catch(_){ return [u,0]; }
+    }));
+  }catch(_){}
+  return `
+  <div class="panel pad"><h3>signed audit packages ${PV}</h3>
+    <table class="tbl"><thead><tr><th>unit</th><th style="text-align:right">audit rows</th><th style="text-align:right">actions</th></tr></thead><tbody>
+    ${rows.map(([u,n])=>`<tr><td><span class="dot ${st(u)}"></span>${esc(u.name)}</td>
+      <td class="r-al">${n}</td>
+      <td style="text-align:right;white-space:nowrap">
+        <button class="ghost" data-toast="export ships in m6" style="height:26px;font-size:12px">export</button>
+        <button class="ghost" data-toast="signature verify ships in m6" style="height:26px;font-size:12px">verify</button></td></tr>`).join("")||'<tr><td class="dim" colspan="3">no units</td></tr>'}
+    </tbody></table>
+    <p class="dim" style="margin:12px 0 0;font-size:12.5px">export = a signed package of the audit trail anyone can verify (m6).</p>
+  </div>`;
+}
+const VIEWS = { units:()=>null, maker:makerView, ops:opsView, alerts:alertsView, passport:passportView, sentinel:sentinelView, vault:vaultView };
 
-  function buildSectors() {
-    const groups = new Map();
-    agents.forEach(a => {
-      const key = a.purpose.trim() || "unassigned";
-      if (!groups.has(key)) groups.set(key, []);
-      groups.get(key).push(a);
-    });
-    const secs = [];
-    for (const [name, list] of groups) {
-      const { lat, lon } = latlon(name);
-      const la = deg(lat), lo = deg(lon);
-      secs.push({
-        name, units: list,
-        v: [Math.cos(la) * Math.cos(lo), Math.sin(la), Math.cos(la) * Math.sin(lo)],
-        live: list.some(a => a.is_active && !a.quarantined),
-        red: list.some(a => a.quarantined)
-      });
-    }
-    return secs;
-  }
-  let sectors = [];
+function doCheck(){
+  const x = $("#si").value.trim().toLowerCase();
+  if(!x) return;
+  const own = AGENTS.some(a=>a.name.toLowerCase()===x);
+  let r;
+  if(["spam-bot-13","scam-agent-7"].includes(x)) r = ["FLAGGED","r"];
+  else if(x==="promo-bot-2") r = ["REPORTED","a"];
+  else if(own) r = ["ON YOUR GRID","b"];
+  else r = ["UNKNOWN","dim"];
+  $("#sr").innerHTML = '<p class="'+r[1]+'" style="font:700 22px var(--mono);letter-spacing:.24em;margin:14px 0 2px">'+r[0]+'</p><p class="dim" style="margin:0;font-size:13px">'+esc(x)+' · sample reputation data</p>';
+}
 
-  /* ---- navigation ---- */
-  let current = { view: "map", sector: null, unit: null };
-  let stopGlobes = [];
-  const clearGlobes = () => { stopGlobes.forEach(f => f()); stopGlobes = []; };
-
-  function show(view) {
-    document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
-    $("view-" + view).classList.add("active");
-    current.view = view;
-    renderCrumbs();
-    window.scrollTo(0, 0);
-  }
-
-  function renderCrumbs() {
-    const c = $("crumbs");
-    c.innerHTML = "";
-    const link = (label, fn) => {
-      const b = document.createElement("button");
-      b.textContent = label;
-      b.addEventListener("click", fn);
-      c.append(b);
-    };
-    link("containment", showMap);
-    if (current.view === "console") {
-      c.append(" / ");
-      const s = document.createElement("span");
-      s.textContent = "maker console";
-      c.append(s);
+/* ================= render ================= */
+function renderNav(){
+  $("#nav").innerHTML = NAV.map(([k,n])=>{
+    const badge = k==="units" && AGENTS.length ? '<span class="nbadge num">'+AGENTS.length+'</span>' : "";
+    return `<button data-v="${k}" class="${view===k?"cur":""}" title="${n}">${IC[k]}<span>${n}</span>${badge}</button>`;
+  }).join("");
+}
+function renderMain(){
+  const m = $("#main");
+  if(view==="units"){
+    if(cur){
+      const u = byId(cur);
+      if(!u){ cur = null; renderMain(); return; }
+      m.innerHTML = unitDetail(u);
+      fillAudit(u.id);
       return;
     }
-    if (current.sector) { c.append(" / "); link(current.sector.name, () => showCards(current.sector)); }
-    if (current.unit) {
-      c.append(" / ");
-      const s = document.createElement("span");
-      s.textContent = current.unit.name;
-      c.append(s);
-    }
+    m.innerHTML = kpiStrip() + `<div class="top2">${globePanel()}${sidePanel()}</div>` + unitsList();
+    initGlobe();
+    return;
   }
-
-  function showMap() { clearGlobes(); current = { view: "map", sector: null, unit: null }; show("map"); }
-
-  /* ---- header health + stop all ---- */
-  async function loadHealth() {
-    const el = $("status");
-    try {
-      const h = await api("/health");
-      el.innerHTML = `server <b class="${h.status === "ok" ? "" : "bad"}">127.0.0.1:8000</b>, ${h.status === "ok" ? "online" : h.status}, db ${h.db}`;
-    } catch (e) {
-      el.innerHTML = `server <b class="bad">127.0.0.1:8000</b>, unreachable`;
-    }
+  const fn = VIEWS[view];
+  if(view==="vault"){
+    m.innerHTML = '<div class="panel" style="padding:8px"><div class="skel"></div><div class="skel" style="width:80%"></div><div class="skel" style="width:60%"></div></div>';
+    fn().then(html=>{ if(view==="vault") m.innerHTML = html; });
+    return;
   }
+  m.innerHTML = fn ? fn() : "";
+}
+function renderAll(){ renderSbFoot(); renderNav(); renderMain(); }
 
-  $("stop-all").addEventListener("click", async () => {
-    if (!confirm("STOP ALL?\n\nEvery active unit is deactivated in one call.")) return;
-    try {
-      const r = await api("/agents/deactivate-all", { method: "POST" });
-      await reload();
-      if (current.view === "unit" && current.unit) showUnit(current.unit.id);
-      alert(`deactivated ${r.deactivated} unit${r.deactivated === 1 ? "" : "s"}`);
-    } catch (e) { alert(`stop all failed: ${e.message}`); }
+/* events (delegated) */
+document.addEventListener("click", e=>{
+  const t = e.target.closest("button"); if(!t) return;
+  const d = t.dataset;
+  if(d.v){ view = d.v; cur = null; renderAll(); }
+  else if(d.l){ layer = d.l; renderAll();
+    if(d.l==="trust") toast("preview · passport trust ships in m8","warn");
+    if(d.l==="threats") toast("preview · sentinel reputation ships in m9","warn"); }
+  else if(d.f){ filter = d.f; renderMain(); }
+  else if(d.open){ cur = +d.open; sel = +d.open; view = "units"; renderAll(); window.scrollTo({top:0,behavior:REDUCE?"auto":"smooth"}); }
+  else if(d.back){ cur = null; renderMain(); renderNav(); }
+  else if(d.a){ act(+d.id, d.a); }
+  else if(d.fire){ toast("preview alert · "+d.fire+" · nothing was sent","warn"); }
+  else if(d.toast){ toast("preview · "+d.toast,"warn"); }
+  else if(t.id==="reg"||t.id==="reg2"){ openWizard(); }
+  else if(t.id==="os"){ const i=$("#oi"); if(i&&i.value.trim()){ submitJob(cur, i.value.trim()); i.value=""; } }
+  else if(t.id==="testjob"){ submitJob(cur, "ping"); }
+  else if(t.id==="sc"){ doCheck(); }
+});
+
+/* ================= globe ================= */
+let globeInited = false, renderer = null, scene, camera, root, markers, mGeo, arcsGroup;
+let W=0, H=0, rotY=.6, rotX=-.25, velY=0, drag=0, moved=0, lx=0, ly=0, hoverId=null;
+let gc, ov, g2, agentXYZ;
+const wake = [];
+
+function initGlobe(){
+  gc = $("#globe"); ov = $("#ov"); if(!gc) return;
+  g2 = ov.getContext("2d");
+  agentXYZ = new Map();
+  if(!globeInited){
+    buildScene(); globeInited = true; requestAnimationFrame(animate);
+  }else{
+    if(renderer) renderer.dispose();
+    renderer = new THREE.WebGLRenderer({ canvas:gc, antialias:true, alpha:true, powerPreference:"high-performance" });
+    renderer.setClearColor(0x000000, 0);
+    if("outputColorSpace" in renderer) renderer.outputColorSpace = THREE.SRGBColorSpace;
+  }
+  resizeGlobe();
+  globeRefresh();
+  bindGlobeInput();
+}
+function buildScene(){
+  scene = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera(50, 1, 0.1, 100);
+  camera.position.set(0, 0, 3.35);
+  root = new THREE.Group();
+  scene.add(root);
+  renderer = new THREE.WebGLRenderer({ canvas:gc, antialias:true, alpha:true, powerPreference:"high-performance" });
+  renderer.setClearColor(0x000000, 0);
+  if("outputColorSpace" in renderer) renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+  const N = matchMedia("(pointer:coarse)").matches ? 1800 : 3200;
+  const sPos = new Float32Array(N*3);
+  for(let i=0;i<N;i++){
+    const y = 1 - i/(N-1)*2, r = Math.sqrt(1-y*y), t = i*2.39996;
+    sPos[i*3]=Math.cos(t)*r; sPos[i*3+1]=y; sPos[i*3+2]=Math.sin(t)*r;
+  }
+  const sGeo = new THREE.BufferGeometry();
+  sGeo.setAttribute("position", new THREE.BufferAttribute(sPos,3));
+  root.add(new THREE.Points(sGeo, new THREE.PointsMaterial({ color:0x3a5a85, size:0.011, transparent:true, opacity:.9, blending:THREE.AdditiveBlending, depthWrite:false })));
+
+  /* latitude rings — mission-control structure */
+  [0, .5, -.5].forEach(lat=>{
+    const pts = [];
+    for(let k=0;k<=90;k++){
+      const th = k/90*Math.PI*2;
+      pts.push(new THREE.Vector3(Math.cos(lat)*Math.cos(th), Math.sin(lat), Math.cos(lat)*Math.sin(th)));
+    }
+    const g = new THREE.BufferGeometry().setFromPoints(pts);
+    root.add(new THREE.Line(g, new THREE.LineBasicMaterial({ color:0x8aa8d8, transparent:true, opacity:.055 })));
   });
 
-  /* ---- maker console (owner only, all real) ---- */
-  let cfSelected = null;
+  /* atmosphere */
+  const cvx = document.createElement("canvas"); cvx.width = cvx.height = 128;
+  const cx2 = cvx.getContext("2d");
+  const gr = cx2.createRadialGradient(64,64,8,64,64,64);
+  gr.addColorStop(0,"rgba(79,124,255,0.22)");
+  gr.addColorStop(.55,"rgba(79,124,255,0.055)");
+  gr.addColorStop(1,"rgba(79,124,255,0)");
+  cx2.fillStyle = gr; cx2.fillRect(0,0,128,128);
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map:new THREE.CanvasTexture(cvx), blending:THREE.AdditiveBlending, depthWrite:false, transparent:true }));
+  sp.scale.set(2.65,2.65,1);
+  root.add(sp);
 
-  function tier(tpm) {
-    if (tpm < 5)  return { key: "light",  label: "light",  color: "#4f8bff" };
-    if (tpm < 20) return { key: "normal", label: "normal", color: "#5cff9d" };
-    if (tpm < 50) return { key: "heavy",  label: "heavy",  color: "#ffb547" };
-    return          { key: "over",   label: "over",   color: "#ff3b4e" };
+  /* stars */
+  const M = 650, p = new Float32Array(M*3);
+  for(let i=0;i<M;i++){
+    const v = new THREE.Vector3().randomDirection().multiplyScalar(9+Math.random()*6);
+    p[i*3]=v.x; p[i*3+1]=v.y; p[i*3+2]=v.z;
   }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.BufferAttribute(p,3));
+  scene.add(new THREE.Points(g, new THREE.PointsMaterial({ color:0x5a6a8a, size:0.03, transparent:true, opacity:.5, depthWrite:false })));
 
-  function showConsole() {
-    clearGlobes();
-    current = { view: "console", sector: null, unit: null };
-    show("console");
-    renderConsole();
+  /* markers */
+  const MAXA = 64;
+  const mPos = new Float32Array(MAXA*3), mCol = new Float32Array(MAXA*3);
+  mGeo = new THREE.BufferGeometry();
+  mGeo.setAttribute("position", new THREE.BufferAttribute(mPos,3));
+  mGeo.setAttribute("color", new THREE.BufferAttribute(mCol,3));
+  markers = new THREE.Points(mGeo, new THREE.PointsMaterial({ size:.07, vertexColors:true, transparent:true, blending:THREE.AdditiveBlending, depthWrite:false }));
+  root.add(markers);
+
+  arcsGroup = new THREE.Group();
+  root.add(arcsGroup);
+}
+function markerColor(a){
+  if(layer==="states") return new THREE.Color(C[st(a)]);
+  return new THREE.Color("#63636b");
+}
+function vecFib(i,n){
+  const y = n<=1 ? 0 : 1 - i/(n-1)*2;
+  const r = Math.sqrt(Math.max(0,1-y*y)), t = i*2.39996;
+  return new THREE.Vector3(Math.cos(t)*r, y, Math.sin(t)*r);
+}
+function globeRefresh(){
+  if(!mGeo || !gc) return;
+  const n = Math.min(AGENTS.length, 64);
+  agentXYZ.clear();
+  const pos = mGeo.attributes.position.array, col = mGeo.attributes.color.array;
+  for(let i=0;i<n;i++){
+    const v = vecFib(i,n).multiplyScalar(1.02);
+    agentXYZ.set(AGENTS[i].id, v);
+    pos[i*3]=v.x; pos[i*3+1]=v.y; pos[i*3+2]=v.z;
+    const c = markerColor(AGENTS[i]);
+    col[i*3]=c.r; col[i*3+1]=c.g; col[i*3+2]=c.b;
   }
-  $("open-console").addEventListener("click", showConsole);
-
-  async function renderConsole() {
-    clearGlobes();
-    const rows = await Promise.all(agents.map(async a => ({ a, s: await statsFor(a.id) })));
-
-    /* server facts */
-    const active = agents.filter(a => stateOf(a) === "active").length;
-    const standby = agents.filter(a => stateOf(a) === "standby").length;
-    const quar = agents.filter(a => stateOf(a) === "quarantined").length;
-    const totalOrders = rows.reduce((n, r) => n + r.s.tasks, 0);
-    const totalRefusals = rows.reduce((n, r) => n + r.s.refusals, 0);
-    const facts = [["units", agents.length], ["active", active], ["standby", standby],
-                   ["quarantined", quar], ["orders done", totalOrders], ["refusals", totalRefusals]];
-    $("cf-facts").innerHTML = facts.map(([k, v]) => `<div><b>${v}</b>${k}</div>`).join("");
-    try {
-      const h = await api("/health");
-      $("cf-health").textContent = `health ${h.status} · db ${h.db} · 127.0.0.1:8000 (loopback only)`;
-    } catch (e) {
-      $("cf-health").textContent = "health check failed";
-    }
-
-    /* load verdict from real orders/min */
-    const tpm = rows.reduce((n, r) => n + r.s.tpm, 0);
-    const v = tpm > 90 ? { cls: "over", label: "over the limit", note: `total load ${tpm} orders/min. reduce load or split the work.` }
-            : tpm > 45 ? { cls: "near", label: "near the limit", note: `total load ${tpm} orders/min. watch the busiest units.` }
-            :            { cls: "ok",   label: "can handle it",  note: `total load ${tpm} orders/min. room to spare for now.` };
-    $("verdict").className = "verdict " + v.cls;
-    $("verdict").textContent = v.label;
-    $("verdict-note").textContent = v.note;
-    const setG = (val, bar, pct, hot, warn) => {
-      $(bar).style.width = clamp(pct, 0, 100) + "%";
-      $(bar).className = pct > (hot || 90) ? "hot" : pct > (warn || 75) ? "warn" : "";
-    };
-    $("g-tpm").textContent = tpm;
-    setG(tpm, "t-tpm", tpm, 90, 45);
-    $("g-ref").textContent = totalRefusals;
-    setG(totalRefusals, "t-ref", totalRefusals * 10, 30, 10);
-    $("g-act").textContent = `${active}/${agents.length}`;
-    setG(agents.length ? (active / agents.length) * 100 : 0, "t-act", agents.length ? (active / agents.length) * 100 : 0, 100000, 100000);
-
-    /* units by load */
-    const grid = $("cf-units");
-    grid.innerHTML = agents.length ? "" : '<p class="small">no units yet</p>';
-    rows.forEach(({ a, s }) => {
-      const t = tier(s.tpm);
-      const tile = document.createElement("div");
-      tile.className = "unit-tile glow-" + t.key + (cfSelected === a.id ? " selected" : "");
-      tile.innerHTML = `<canvas width="200" height="200" role="button" tabindex="0" aria-label="${esc(a.name)}"></canvas>
-        <div class="uname"></div><div class="umeta"></div><div class="utier"></div>`;
-      tile.querySelector(".uname").textContent = a.name;
-      tile.querySelector(".umeta").textContent = `${s.tpm} orders/min, ${s.tasks} total, ${stateOf(a)}`;
-      tile.querySelector(".utier").textContent = t.label;
-      tile.querySelector(".utier").style.color = t.color;
-      const pick = () => { cfSelected = a.id; renderConsole(); };
-      const c = tile.querySelector("canvas");
-      c.addEventListener("click", pick);
-      c.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick(); } });
-      stopGlobes.push(drawGlobe(c, t.color, true, Math.random() * 6));
-      grid.append(tile);
-    });
-
-    /* detail */
-    const sel = rows.find(r => r.a.id === cfSelected);
-    if (!sel) {
-      $("cf-detail-title").textContent = "select a unit";
-      $("cf-detail").innerHTML = "";
-      $("cf-detail-note").textContent = "tap a unit's globe to see its real numbers.";
-    } else {
-      const { a, s } = sel;
-      $("cf-detail-title").textContent = a.name;
-      const fields = [["state", stateOf(a)], ["orders", s.tasks], ["success", s.tasks ? s.rate + "%" : "—"],
-                      ["refusals", s.refusals], ["orders/min", s.tpm], ["tools", a.allowed_tools.length || 0],
-                      ["last event", s.last ? s.last.step : "—"]];
-      $("cf-detail").innerHTML = fields.map(([k, v]) => `<div><b>${esc(String(v))}</b>${k}</div>`).join("");
-      $("cf-detail-note").textContent = `unit #${a.id} · purpose: ${a.purpose || "unassigned"} · computed from /agents and /logs only.`;
-    }
-
-    /* security flags — real: refusals >= 3 or quarantined */
-    const flagged = rows.filter(r => r.s.refusals >= 3 || r.a.quarantined);
-    const fbox = $("cf-flags");
-    fbox.innerHTML = "";
-    if (!flagged.length) {
-      fbox.innerHTML = '<p class="small">no security flags right now.</p>';
-    }
-    flagged.forEach(({ a, s }) => {
-      const row = document.createElement("div");
-      row.className = "flag";
-      row.innerHTML = `
-        <div class="flag-top"><span class="flag-rule"></span><span class="flag-unit"></span></div>
-        <div class="small flag-detail"></div>
-        <div class="flag-actions">
-          <button class="btn real" type="button"></button>
-          <button class="btn" type="button" disabled>alert owner — needs an alert channel</button>
-        </div>`;
-      row.querySelector(".flag-rule").textContent =
-        a.quarantined ? "unit quarantined" : `${s.refusals} refused orders in the log`;
-      row.querySelector(".flag-unit").textContent = a.name;
-      row.querySelector(".flag-detail").textContent =
-        `${s.tasks} orders total, success ${s.tasks ? s.rate + "%" : "—"}, state ${stateOf(a)}`;
-      const act = row.querySelector(".btn.real");
-      act.textContent = a.quarantined ? "release unit" : "quarantine unit";
-      act.addEventListener("click", async () => {
-        if (!a.quarantined && !confirm(`QUARANTINE ${a.name}?\n\nIt will refuse ALL orders until released.`)) return;
-        try {
-          await api(`/agents/${a.id}/${a.quarantined ? "unquarantine" : "quarantine"}`, { method: "POST" });
-          bustStats(a.id);
-          await reload();   // reload re-renders the console when it is the active view
-        } catch (e) { alert(`failed: ${e.message}`); }
-      });
-      fbox.append(row);
-    });
-
-    /* alert drafts — never sent, explicitly labeled */
-    const draftTargets = rows.filter(r => r.s.refusals >= 3 || r.s.tpm >= 20);
-    const dbox = $("cf-drafts");
-    dbox.innerHTML = "";
-    if (!draftTargets.length) {
-      dbox.innerHTML = '<p class="small">nobody is out of policy right now. nothing to draft.</p>';
-    }
-    draftTargets.forEach(({ a, s }) => {
-      const label = document.createElement("p");
-      label.className = "small";
-      label.textContent = `to: owner — about ${a.name} (${tier(s.tpm).label} load)`;
-      const ta = document.createElement("textarea");
-      ta.className = "draft";
-      ta.readOnly = true;
-      ta.value = `Unit "${a.name}" needs a look: ${s.refusals} refused orders in the audit log, ` +
-        `${s.tpm} orders/min, state ${stateOf(a)}. Review its activation, its allowed tools, ` +
-        `or quarantine it from the maker console. Source: this server's own /logs.`;
-      dbox.append(label, ta);
-    });
+  for(let i=n;i<64;i++){ pos[i*3]=pos[i*3+1]=pos[i*3+2]=99; }
+  mGeo.attributes.position.needsUpdate = true;
+  mGeo.attributes.color.needsUpdate = true;
+  mGeo.setDrawRange(0, n);
+  buildArcs();
+  buildLabels();
+}
+/* pulsing connection arcs — award-globe technique */
+function buildArcs(){
+  while(arcsGroup.children.length){ const c = arcsGroup.children.pop(); c.geometry.dispose(); c.material.dispose(); arcsGroup.remove(c); }
+  const list = AGENTS.filter(a=>agentXYZ.has(a.id));
+  if(list.length < 2) return;
+  const pairs = [];
+  const actList = list.filter(a=>st(a)==="active");
+  if(actList.length>=2){
+    for(let i=0;i<actList.length;i++) pairs.push([actList[i], actList[(i+1)%actList.length]]);
   }
-
-  /* ---- dot globes ---- */
-  const GN = 260;
-  const gpts = Array.from({ length: GN }, (_, i) => {
-    const y = 1 - (i / (GN - 1)) * 2;
-    const r = Math.sqrt(Math.max(0, 1 - y * y));
-    const th = i * 2.39996;
-    return [Math.cos(th) * r, y, Math.sin(th) * r];
+  if(sel!=null){
+    const s = byId(sel);
+    if(s && agentXYZ.has(s.id)) list.forEach(a=>{ if(a.id!==s.id) pairs.push([s,a]); });
+  }
+  pairs.forEach(([a,b], i)=>{
+    const A = agentXYZ.get(a.id), B = agentXYZ.get(b.id);
+    if(!A||!B) return;
+    const mid = A.clone().add(B).multiplyScalar(.5).normalize().multiplyScalar(1 + A.distanceTo(B)*.28);
+    const curve = new THREE.QuadraticBezierCurve3(A, mid, B);
+    const pts = curve.getPoints(28);
+    const g = new THREE.BufferGeometry().setFromPoints(pts);
+    const danger = st(a)==="quarantined" || st(b)==="quarantined";
+    const col = danger ? 0xff453a : 0x4f7cff;
+    const m = new THREE.LineBasicMaterial({ color:col, transparent:true, opacity:.35, blending:THREE.AdditiveBlending, depthWrite:false });
+    const line = new THREE.Line(g, m);
+    line.userData = { phase:i*0.9, base: danger ? .4 : .28 };
+    arcsGroup.add(line);
   });
-
-  function drawGlobe(canvasEl, color, spinning, phase) {
-    const g = canvasEl.getContext("2d");
-    const size = canvasEl.width;
-    const R = size * 0.42;
-    let angle = phase, raf = 0;
-    const frame = () => {
-      g.clearRect(0, 0, size, size);
-      const cs = Math.cos(angle), sn = Math.sin(angle);
-      g.fillStyle = color;
-      gpts.forEach(p => {
-        const x = p[0] * cs - p[2] * sn;
-        const z = p[0] * sn + p[2] * cs;
-        const depth = (z + 1) / 2;
-        g.globalAlpha = 0.15 + depth * 0.85;
-        g.beginPath();
-        g.arc(size / 2 + x * R, size / 2 + p[1] * R, 0.9 + depth * 1.4, 0, Math.PI * 2);
-        g.fill();
-      });
-      g.globalAlpha = 1;
-      if (spinning && !reduced) { angle += 0.006; raf = requestAnimationFrame(frame); }
-    };
-    frame();
-    return () => cancelAnimationFrame(raf);
-  }
-
-  /* ---- LEVEL 1: the big draggable globe ---- */
-  const canvas = $("sphere");
-  const ctx = canvas.getContext("2d");
-  let W = 0, H = 0, DPR = 1;
-
-  function resize() {
-    DPR = Math.min(window.devicePixelRatio || 1, 2);
-    const r = canvas.getBoundingClientRect();
-    W = r.width; H = r.height;
-    canvas.width = Math.round(W * DPR);
-    canvas.height = Math.round(H * DPR);
-    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-  }
-  window.addEventListener("resize", resize);
-
-  const N = 1100;
-  const dots = Array.from({ length: N }, (_, i) => {
-    const y = 1 - (i / (N - 1)) * 2;
-    const r = Math.sqrt(Math.max(0, 1 - y * y));
-    const th = i * 2.39996;
-    return { p: [Math.cos(th) * r, y, Math.sin(th) * r], hue: 130 + (i / N) * 85 };
+}
+function buildLabels(){
+  const box = $("#glabels"); if(!box) return;
+  box.innerHTML = "";
+  AGENTS.forEach(a=>{
+    const el = document.createElement("div");
+    el.className = "glab";
+    el.innerHTML = '<i style="background:'+C[st(a)]+'"></i>'+esc(a.name);
+    box.append(el);
   });
-
-  let rotY = 0.6, rotX = -0.3, spin = 0.6;
-  let hovering = false, dragging = false, moved = 0, lastX = 0, lastY = 0;
-  let hoverSector = null;
-
-  function rotate(x, y, z) {
-    const cy = Math.cos(rotY), sy = Math.sin(rotY);
-    const x1 = x * cy + z * sy, z1 = -x * sy + z * cy;
-    const cx = Math.cos(rotX), sx = Math.sin(rotX);
-    return [x1, y * cx - z1 * sx, y * sx + z1 * cx];
-  }
-
-  function sectorAt(px, py) {
-    const R = Math.min(W, H) * 0.42;
-    let best = null, bestD = 30;
-    sectors.forEach(s => {
-      const [x, y, z] = rotate(...s.v);
-      if (z < 0) return;
-      const d = Math.hypot(W / 2 + x * R - px, H / 2 + y * R - py);
-      if (d < bestD) { bestD = d; best = s; }
-    });
-    return best;
-  }
-
-  canvas.addEventListener("pointerdown", e => {
-    dragging = true; moved = 0; lastX = e.clientX; lastY = e.clientY;
-    canvas.setPointerCapture(e.pointerId);
-    canvas.classList.add("grabbing");
-  });
-  canvas.addEventListener("pointermove", e => {
-    const rect = canvas.getBoundingClientRect();
-    const px = e.clientX - rect.left, py = e.clientY - rect.top;
-    hovering = true;
-    if (dragging) {
-      const dx = e.clientX - lastX, dy = e.clientY - lastY;
-      moved += Math.abs(dx) + Math.abs(dy);
-      rotY += dx * 0.006;
-      rotX = clamp(rotX + dy * 0.006, -1.2, 1.2);
-      spin = rotY;
-      lastX = e.clientX; lastY = e.clientY;
-      hoverSector = null;
-    } else {
-      hoverSector = sectorAt(px, py);
-      canvas.style.cursor = hoverSector ? "pointer" : "grab";
+}
+function bindGlobeInput(){
+  if(!gc) return;
+  gc.addEventListener("pointerdown", e=>{ drag=1; moved=0; lx=e.clientX; ly=e.clientY; gc.setPointerCapture(e.pointerId); gc.classList.add("drag"); });
+  gc.addEventListener("pointermove", e=>{
+    const r = gc.getBoundingClientRect();
+    if(drag){
+      const dx=e.clientX-lx, dy=e.clientY-ly;
+      moved += Math.abs(dx)+Math.abs(dy);
+      rotY += dx*.0055; velY = dx*.0055;
+      rotX = Math.max(-1.1, Math.min(1.1, rotX+dy*.0055));
+      lx=e.clientX; ly=e.clientY;
+    }else{
+      hoverId = pick(e.clientX-r.left, e.clientY-r.top);
+      gc.style.cursor = hoverId!=null ? "pointer" : "grab";
+      if(!REDUCE){ wake.push({x:e.clientX-r.left, y:e.clientY-r.top, t:performance.now()}); if(wake.length>22) wake.shift(); }
     }
   });
-  canvas.addEventListener("pointerleave", () => { hovering = false; hoverSector = null; });
-  canvas.addEventListener("pointerup", e => {
-    dragging = false;
-    canvas.classList.remove("grabbing");
-    if (moved < 6) {
-      const rect = canvas.getBoundingClientRect();
-      const hit = sectorAt(e.clientX - rect.left, e.clientY - rect.top);
-      if (hit) showCards(hit);
+  gc.addEventListener("pointerup", e=>{
+    drag=0; gc.classList.remove("drag");
+    if(moved<7){
+      const r = gc.getBoundingClientRect();
+      const id = pick(e.clientX-r.left, e.clientY-r.top);
+      if(id!=null){ sel=id; cur=id; renderAll(); }
     }
   });
-
-  function updateRotation() {
-    if (dragging) return;
-    if (!reduced) spin += hovering ? 0.0007 : 0.0018;
-    rotY = spin;
+  gc.addEventListener("pointerleave", ()=>{ hoverId=null; });
+  gc.addEventListener("wheel", e=>{ e.preventDefault(); camera.position.z = Math.max(2.25, Math.min(5.2, camera.position.z+e.deltaY*.0016)); }, { passive:false });
+}
+function pick(px,py){
+  if(!root) return null;
+  root.updateMatrixWorld();
+  let best=null, bd=20;
+  AGENTS.forEach(a=>{
+    const v = agentXYZ.get(a.id); if(!v) return;
+    const p = v.clone().applyMatrix4(root.matrixWorld).project(camera);
+    if(p.z>1) return;
+    const x=(p.x*.5+.5)*W, y=(-p.y*.5+.5)*H;
+    const d = Math.hypot(x-px,y-py);
+    if(d<bd){ bd=d; best=a.id; }
+  });
+  return best;
+}
+function resizeGlobe(){
+  if(!gc||!renderer) return;
+  const r = gc.getBoundingClientRect();
+  if(r.width===0) return;
+  const dpr = Math.min(window.devicePixelRatio||1, 1.75);
+  W=r.width; H=r.height;
+  ov.width=W*dpr; ov.height=H*dpr;
+  ov.getContext("2d").setTransform(dpr,0,0,dpr,0,0);
+  camera.aspect = W/Math.max(H,1);
+  camera.updateProjectionMatrix();
+  renderer.setPixelRatio(dpr);
+  renderer.setSize(W,H,false);
+}
+function animate(now){
+  requestAnimationFrame(animate);
+  if(!renderer || !document.body.contains(gc)) return;
+  if(!drag){
+    if(Math.abs(velY)>.00004){ rotY+=velY; velY*=.94; }
+    if(!REDUCE && hoverId==null) rotY += .001;
   }
+  root.rotation.y = rotY; root.rotation.x = rotX;
+  root.updateMatrixWorld();
+  renderer.render(scene, camera);
 
-  function drawMapGlobe(t) {
-    if (current.view !== "map") return;
-    ctx.clearRect(0, 0, W, H);
-    const R = Math.min(W, H) * 0.42;
-    const cx = W / 2, cy = H / 2;
-    dots.forEach(d => {
-      const [x, y, z] = rotate(d.p[0], d.p[1], d.p[2]);
-      const depth = (z + 1) / 2;
-      ctx.globalAlpha = 0.1 + depth * 0.9;
-      ctx.fillStyle = `hsl(${d.hue}, 100%, ${60 + depth * 24}%)`;
+  /* arc pulse */
+  if(arcsGroup) arcsGroup.children.forEach(l=>{
+    l.material.opacity = l.userData.base + (REDUCE?0:.18*Math.sin(now*.0022 + l.userData.phase));
+  });
+
+  /* overlay */
+  const ctx = g2;
+  ctx.clearRect(0,0,W,H);
+  for(let i=wake.length-1;i>=0;i--){
+    const p = wake[i], age = now-p.t;
+    if(age>600){ wake.splice(i,1); continue; }
+    ctx.globalAlpha = (1-age/600)*.45;
+    ctx.fillStyle = "#4f7cff";
+    ctx.beginPath(); ctx.arc(p.x,p.y,1.5,0,6.3); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  const labels = $("#glabels") ? $("#glabels").children : [];
+  AGENTS.forEach((a,i)=>{
+    const v = agentXYZ.get(a.id); const el = labels[i];
+    if(!v){ if(el) el.style.opacity=0; return; }
+    const p = v.clone().applyMatrix4(root.matrixWorld).project(camera);
+    const x=(p.x*.5+.5)*W, y=(-p.y*.5+.5)*H;
+    if(el){
+      el.style.left=x+"px"; el.style.top=(y-15)+"px";
+      el.style.opacity = (p.z<.96 && (a.id===hoverId || a.id===sel || AGENTS.length<=8)) ? 1 : 0;
+    }
+    if((a.id===hoverId||a.id===sel) && p.z<1){
+      ctx.strokeStyle = a.id===sel ? C[st(a)] : "#fafafa";
+      ctx.lineWidth = 1.3;
+      ctx.beginPath(); ctx.arc(x,y,12,0,6.3); ctx.stroke();
+      ctx.globalAlpha=.55;
       ctx.beginPath();
-      ctx.arc(cx + x * R, cy + y * R, 0.7 + depth * 1.3, 0, Math.PI * 2);
-      ctx.fill();
-    });
-    ctx.globalAlpha = 1;
-    sectors.forEach(s => {
-      const [x, y, z] = rotate(...s.v);
-      if (z < -0.05) return;
-      const px = cx + x * R, py = cy + y * R;
-      const front = Math.max(0, z);
-      const isHover = s === hoverSector;
-      if (s.live && !reduced) {
-        const phase = (t / 1000 % 2.4) / 2.4;
-        ctx.globalAlpha = (1 - phase) * 0.7 * front;
-        ctx.strokeStyle = "#5cff9d";
-        ctx.lineWidth = 1;
-        ctx.beginPath(); ctx.arc(px, py, 8 + phase * 26, 0, Math.PI * 2); ctx.stroke();
-        ctx.globalAlpha = 1;
-      }
-      if (isHover) {
-        ctx.strokeStyle = "#e8f3ff";
-        ctx.lineWidth = 1.5;
-        ctx.beginPath(); ctx.arc(px, py, 18, 0, Math.PI * 2); ctx.stroke();
-      }
-      ctx.globalAlpha = 0.4 + front * 0.6;
-      ctx.fillStyle = s.red ? "#ff3b4e" : s.live ? "#5cff9d" : "#6b7a8c";
-      ctx.beginPath(); ctx.arc(px, py, 5 + front * 2, 0, Math.PI * 2); ctx.fill();
-      ctx.globalAlpha = 1;
-      if (z > 0.15) {
-        ctx.fillStyle = isHover ? "#ffffff" : "#e8f3ff";
-        ctx.font = "13px ui-monospace, Menlo, Consolas, monospace";
-        ctx.fillText(s.name, px + 14, py + 4);
-        ctx.fillStyle = "#7e8fa5";
-        ctx.font = "11px ui-monospace, Menlo, Consolas, monospace";
-        ctx.fillText(`${s.units.length} unit${s.units.length > 1 ? "s" : ""}`, px + 14, py + 19);
-      }
-    });
-  }
-
-  function loop(t) {
-    updateRotation();
-    drawMapGlobe(t);
-    requestAnimationFrame(loop);
-  }
-
-  /* ---- readouts: real counts, no placeholders ---- */
-  async function fillReadouts() {
-    const all = agents;
-    const count = s => all.filter(a => stateOf(a) === s).length;
-    const active = count("active");
-    const pct = all.length ? Math.round((active / all.length) * 100) : 0;
-    let ordersDone = 0;
-    await Promise.all(all.map(async a => { ordersDone += (await statsFor(a.id)).tasks; }));
-    $("ro-left").innerHTML = `
-      units <b>${all.length}</b><br>
-      active now <b>${active}</b>
-      <span class="bar"><span style="width:${pct}%"></span></span><br>
-      sectors <b>${sectors.length}</b>`;
-    $("ro-right").innerHTML = `
-      standby <b>${count("standby")}</b><br>
-      quarantined <b>${count("quarantined")}</b><br>
-      orders done <b>${ordersDone}</b>`;
-    $("map-empty").textContent = all.length
-      ? ""
-      : "0 units — none registered yet. use the panel below, then reload the globe.";
-    renderSrNav();
-  }
-
-  function renderSrNav() {
-    const nav = $("sr-nav");
-    nav.innerHTML = "";
-    sectors.forEach(s => {
-      const b = document.createElement("button");
-      b.textContent = s.name;
-      b.addEventListener("click", () => showCards(s));
-      nav.append(b);
-    });
-  }
-
-  /* ---- register ---- */
-  $("r-submit").addEventListener("click", async () => {
-    const t = $("r-toast");
-    const tools = $("r-tools").value.split(",").map(s => s.trim()).filter(Boolean);
-    try {
-      const a = await api("/agents", {
-        method: "POST",
-        body: JSON.stringify({
-          name: $("r-name").value.trim(),
-          purpose: $("r-purpose").value.trim(),
-          allowed_tools: tools
-        })
-      });
-      t.className = "toast-r g";
-      t.textContent = `registered #${a.id} ${a.name} — standby`;
-      $("r-name").value = ""; $("r-purpose").value = ""; $("r-tools").value = "";
-      await reload();
-    } catch (e) {
-      t.className = "toast-r r";
-      t.textContent = `rejected — ${e.message}`;
+      ctx.moveTo(x-19,y); ctx.lineTo(x-14,y); ctx.moveTo(x+14,y); ctx.lineTo(x+19,y);
+      ctx.moveTo(x,y-19); ctx.lineTo(x,y-14); ctx.moveTo(x,y+14); ctx.lineTo(x,y+19);
+      ctx.stroke(); ctx.globalAlpha=1; ctx.lineWidth=1;
     }
   });
+}
+addEventListener("resize", resizeGlobe);
 
-  /* ---- LEVEL 2: sector cards ---- */
-  function makeCard(o) {
-    const card = document.createElement("article");
-    card.className = "card " + (o.className || "");
-    card.innerHTML = `
-      <div class="card-top"><span>${esc(o.kicker)}</span><span class="tag ${esc(o.tag)}">${esc(o.tag)}</span></div>
-      <div class="card-art"><canvas width="300" height="300" aria-hidden="true"></canvas></div>
-      <h3></h3>
-      <p class="role"></p>
-      <div class="big">${o.big}<small>${esc(o.bigLabel)}</small></div>
-      <ul class="items"></ul>`;
-    card.querySelector("h3").textContent = o.title;
-    card.querySelector(".role").textContent = o.role;
-    const ul = card.querySelector("ul.items");
-    if (o.items.length) {
-      o.items.forEach(t => { const li = document.createElement("li"); li.textContent = t; ul.append(li); });
-    } else {
-      const li = document.createElement("li");
-      li.className = "none";
-      li.textContent = o.emptyText;
-      ul.append(li);
-    }
-    if (o.button) {
-      const b = document.createElement("button");
-      b.className = "cta";
-      b.type = "button";
-      b.textContent = o.button.label;
-      b.addEventListener("click", o.button.onClick);
-      card.append(b);
-    }
-    const artCanvas = card.querySelector("canvas");
-    stopGlobes.push(drawGlobe(artCanvas, o.color, o.spinning, Math.random() * 6));
-    if (o.onGlobeTap) {
-      artCanvas.classList.add("tappable");
-      artCanvas.addEventListener("click", o.onGlobeTap);
-    }
-    if (o.minimal) card.classList.add("minimal");
-    return card;
-  }
-
-  async function showCards(sector) {
-    clearGlobes();
-    current = { view: "cards", sector, unit: null };
-    const wrap = $("cards");
-    wrap.innerHTML = '<span class="neutral">loading…</span>';
-    show("cards");
-
-    const stats = await Promise.all(sector.units.map(a => statsFor(a.id)));
-    wrap.innerHTML = "";
-    if (!sector.units.length) {
-      wrap.innerHTML = '<span class="neutral">no units in this sector</span>';
-      return;
-    }
-    let bestIdx = 0;
-    stats.forEach((s, i) => { if (s.rate > stats[bestIdx].rate) bestIdx = i; });
-    sector.units.forEach((a, i) => {
-      const st = stateOf(a);
-      const s = stats[i];
-      wrap.append(makeCard({
-        kicker: "unit", tag: st, title: a.name,
-        role: a.purpose || a.description || "no purpose set",
-        big: s.tasks ? s.rate + "%" : "—", bigLabel: "success rate",
-        items: a.allowed_tools.length ? a.allowed_tools.map(t => `tool: ${t}`) : [],
-        emptyText: "no tools (by design)",
-        color: stateColor(st), spinning: st === "active",
-        className: (i === bestIdx ? "featured " : "") + st,
-        button: { label: "open unit", onClick: () => showUnit(a.id) },
-      }));
-    });
-    renderCrumbs();
-  }
-
-  /* ---- LEVEL 3: one unit, three state cards ---- */
-  async function showUnit(id) {
-    const a = agents.find(x => x.id === id);
-    if (!a) return showMap();
-    clearGlobes();
-    current = { view: "unit", sector: current.sector, unit: a };
-    const st = stateOf(a);
-
-    $("unit-name").textContent = a.name;
-    $("unit-name").style.color = stateColor(st);
-    $("unit-role").textContent = `#${a.id} · ${a.purpose || a.description || "no purpose set"}`;
-
-    const tog = $("act-toggle");
-    tog.textContent = a.is_active ? "DEACTIVATE" : "ACTIVATE";
-    tog.className = a.is_active ? "a-blue" : "a-green";
-    const quar = $("act-quar");
-    quar.textContent = a.quarantined ? "RELEASE" : "QUARANTINE";
-    quar.className = a.quarantined ? "a-green" : "a-red";
-
-    $("composer").classList.remove("open");
-    $("toast").textContent = "";
-
-    const s = await statsFor(a.id);
-    const wrap = $("unit-cards");
-    wrap.innerHTML = "";
-
-    const isActive = st === "active";
-    const isQuarantined = st === "quarantined";
-    const isStandby = st === "standby";
-
-    wrap.append(makeCard({
-      kicker: "state", tag: "active", title: "active", role: "switched on, accepts orders",
-      big: isActive ? "1" : "0", bigLabel: "unit live",
-      items: isActive
-        ? ["accepting orders", ...(a.allowed_tools.length ? a.allowed_tools.map(t => `tool: ${t}`) : ["no tools (by design)"])]
-        : [],
-      emptyText: "not active",
-      color: "#5cff9d", spinning: true,
-      className: "active" + (isActive ? " featured" : ""),
-    }));
-    wrap.append(makeCard({
-      kicker: "state", tag: "quarantined", title: "quarantined", role: "locked by a deliberate action",
-      big: isQuarantined ? "locked" : "0", bigLabel: isQuarantined ? "now" : "none",
-      items: isQuarantined
-        ? [`refused orders: ${s.refusals}`, ...(s.last ? [`last event: ${s.last.step}`] : [])]
-        : [],
-      emptyText: "not quarantined",
-      color: "#ff3b4e", spinning: false,
-      className: "quarantined" + (isQuarantined ? " featured" : ""),
-    }));
-    wrap.append(makeCard({
-      kicker: "state", tag: "standby", title: "standby", role: "off, waiting for orders",
-      big: s.tasks, bigLabel: "orders done",
-      items: isStandby ? ["every order refused + logged", ...(s.last ? [`last event: ${s.last.step}`] : [])] : [],
-      emptyText: "not on standby",
-      color: "#4f8bff", spinning: false,
-      className: "standby" + (isStandby ? " featured" : ""),
-      minimal: true,
-      onGlobeTap: () => {
-        $("composer").classList.add("open");
-        $("order-input").focus();
-      },
-    }));
-
-    $("unit-note").textContent =
-      `state = ${st} · real fields (quarantined=${a.quarantined}, is_active=${a.is_active}) · ` +
-      `tap the standby globe to give an order — the server refuses off-schedule orders itself.`;
-
-    await loadLogs(a.id);
-    renderCrumbs();
-    show("unit");
-  }
-
-  /* head actions */
-  $("act-toggle").addEventListener("click", async () => {
-    const a = current.unit;
-    if (!a) return;
-    try {
-      await api(`/agents/${a.id}/${a.is_active ? "deactivate" : "activate"}`, { method: "POST" });
-      bustStats(a.id);
-      await reload();
-      showUnit(a.id);
-    } catch (e) { alert(`failed: ${e.message}`); }
-  });
-  $("act-quar").addEventListener("click", async () => {
-    const a = current.unit;
-    if (!a) return;
-    if (!a.quarantined &&
-        !confirm("QUARANTINE this unit?\n\nIt will refuse ALL orders until released.")) return;
-    try {
-      await api(`/agents/${a.id}/${a.quarantined ? "unquarantine" : "quarantine"}`, { method: "POST" });
-      bustStats(a.id);
-      await reload();
-      showUnit(a.id);
-    } catch (e) { alert(`failed: ${e.message}`); }
-  });
-
-  /* order composer — REAL submission */
-  $("order-input").addEventListener("keydown", async e => {
-    if (e.key !== "Enter") return;
-    const a = current.unit;
-    const text = e.currentTarget.value.trim();
-    const toast = $("toast");
-    if (!a || !text) return;
-    try {
-      const r = await api(`/agents/${a.id}/tasks`, {
-        method: "POST",
-        body: JSON.stringify({ task_text: text })
-      });
-      toast.className = "toast" + (r.status === "completed" ? "" : " b");
-      toast.textContent = `${r.status.toUpperCase()} · order ${r.task_id} · ${r.output || "(no output)"}`;
-      e.currentTarget.value = "";
-    } catch (err) {
-      const tid = err.detail && err.detail.task_id;
-      toast.className = "toast r";
-      toast.textContent = `${err.status} ${err.message}` + (tid ? ` · refusal logged · order ${tid}` : "");
-    }
-    bustStats(a.id);
-    await Promise.all([loadLogs(a.id)]);
-    // refresh the state cards' numbers without losing the open composer
-    const s = await statsFor(a.id);
-    const bigs = document.querySelectorAll("#unit-cards .big");
-    if (bigs[2]) bigs[2].innerHTML = `${s.tasks}<small>orders done</small>`;
-    if (bigs[1] && a.quarantined) bigs[1].innerHTML = `locked<small>now</small>`;
-  });
-
-  /* ---- audit log ---- */
-  const clock = iso => String(iso).slice(11, 19);
-  async function loadLogs(id) {
-    const box = $("logs");
-    try {
-      const rows = await api(`/agents/${id}/logs`);
-      if (!rows.length) {
-        box.innerHTML = '<span class="neutral">no events yet — nothing has run or been refused</span>';
-        return;
-      }
-      box.innerHTML = rows.slice().reverse().map(r => {
-        const cls = r.status === "ok" ? "ok" : (r.status === "rejected" || r.status === "error") ? "rej" : "neutral";
-        return `<div class="log-line">
-          <span class="t">${clock(r.created_at)}</span>
-          <span>${esc(r.step)}</span>
-          <span class="s ${cls}">${esc(r.status)}</span>
-          <span class="d ${cls}">${esc(r.detail)}</span>
-        </div>`;
-      }).join("");
-    } catch (e) {
-      box.innerHTML = `<span class="rej">log load failed — ${esc(e.message)}</span>`;
-    }
-  }
-
-  /* ---- data load ---- */
-  async function reload() {
-    try { agents = await api("/agents"); }
-    catch (e) { agents = []; }
-    sectors = buildSectors();
-    loadHealth();
-    fillReadouts();
-    if (current.view === "cards" && current.sector) showCards(current.sector);
-    if (current.view === "console") renderConsole();
-  }
-
-  resize();
-  reload();
-  renderCrumbs();
-  requestAnimationFrame(loop);
+/* ================= init ================= */
+(async function init(){
+  renderAll();
+  await loadHealth();
+  await loadAgents(false);
+  setInterval(()=>{ if(!document.activeElement || document.activeElement.tagName!=="INPUT") loadAgents(true); }, 7000);
 })();
 </script>
 </body>
